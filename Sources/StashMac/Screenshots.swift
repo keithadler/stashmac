@@ -60,8 +60,33 @@ enum Screenshots {
         if let pdf = QR.recoveryCard(key, stashName: "Documents and Desktop") {
             let url = dir.appendingPathComponent("recovery-card.pdf"); try pdf.write(to: url); written.append(url)
         }
+        written += Promo.render(into: dir, icon: app.applicationIconImage)
         app.setActivationPolicy(.accessory)
         return written
+    }
+
+    /// Copies screenshots, promo cards, the announcement page and post drafts to ~/Desktop/Stash for Mac announcement.
+    static func announce(from dir: URL) throws -> URL {
+        let fm = FileManager.default
+        let desk = fm.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/Stash for Mac announcement", isDirectory: true)
+        try? fm.removeItem(at: desk)
+        try fm.createDirectory(at: desk.appendingPathComponent("screenshots"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: desk.appendingPathComponent("promo"), withIntermediateDirectories: true)
+        for f in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where f.hasSuffix(".png") || f.hasSuffix(".pdf") {
+            try fm.copyItem(at: dir.appendingPathComponent(f), to: desk.appendingPathComponent("screenshots/\(f)"))
+        }
+        for f in (try? fm.contentsOfDirectory(atPath: dir.appendingPathComponent("promo").path)) ?? [] where f.hasSuffix(".png") {
+            try fm.copyItem(at: dir.appendingPathComponent("promo/\(f)"), to: desk.appendingPathComponent("promo/\(f)"))
+        }
+        let docs = dir.deletingLastPathComponent(), repo = docs.deletingLastPathComponent()
+        if let icon = NSImage(contentsOf: repo.appendingPathComponent("icon/StashMac.iconset/icon_256x256.png")), let tiff = icon.tiffRepresentation,
+           let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) { try png.write(to: desk.appendingPathComponent("icon.png")) }
+        if var html = try? String(contentsOf: docs.appendingPathComponent("announcement.html"), encoding: .utf8) {
+            html = html.replacingOccurrences(of: "../icon/StashMac.iconset/icon_256x256.png", with: "icon.png")
+            try html.write(to: desk.appendingPathComponent("announcement.html"), atomically: true, encoding: .utf8)
+        }
+        if fm.fileExists(atPath: docs.appendingPathComponent("post.txt").path) { try fm.copyItem(at: docs.appendingPathComponent("post.txt"), to: desk.appendingPathComponent("post.txt")) }
+        return desk
     }
 
     @MainActor private static func settle(_ s: TimeInterval = 0.6) { RunLoop.main.run(until: Date().addingTimeInterval(s)) }

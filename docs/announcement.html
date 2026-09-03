@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stash for Mac</title>
+<meta name="description" content="Encrypted backup of the folders that matter, into the free storage you already have. Free, open source, MIT.">
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6e6e73; --bg: #fff; --card: #f5f5f7; --accent: #1f7a55; --line: #e5e5ea; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --muted: #a1a1a6; --bg: #111; --card: #1c1c1e; --accent: #5fc59a; --line: #333; } }
+  * { box-sizing: border-box; } body { margin: 0; font: 17px/1.55 -apple-system, "SF Pro Text", Helvetica, Arial, sans-serif; color: var(--fg); background: var(--bg); }
+  header { background: linear-gradient(135deg, #0f5c44, #2fa374); color: #fff; padding: 72px 24px 56px; text-align: center; }
+  header img.icon { width: 128px; height: 128px; border-radius: 28px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+  header h1 { font-size: 52px; margin: 20px 0 8px; letter-spacing: -0.5px; } header p.tag { font-size: 24px; margin: 0 0 28px; opacity: .95; }
+  .cta { display: inline-block; background: #fff; color: #0f5c44; font-weight: 600; padding: 14px 26px; border-radius: 12px; text-decoration: none; margin: 0 6px; } .cta.secondary { background: rgba(255,255,255,.18); color: #fff; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 24px 80px; } .hero { margin: -40px auto 0; max-width: 980px; padding: 0 24px; } .hero img { width: 100%; border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.35); display: block; }
+  h2 { font-size: 30px; margin: 64px 0 16px; letter-spacing: -0.3px; } .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .card { background: var(--card); border-radius: 14px; padding: 22px; } .card h3 { margin: 0 0 8px; font-size: 19px; } .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .rules { background: var(--card); border-radius: 14px; padding: 8px 26px; } .rules li { margin: 12px 0; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; } .shots img { width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  pre { background: #0e1116; color: #d7e3d7; padding: 20px 22px; border-radius: 12px; overflow-x: auto; font: 14px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 0; } td, th { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; } th { color: var(--muted); font-size: 14px; } td.y { color: #1a9e4a; font-weight: 600; } td.n { color: var(--muted); }
+  footer { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 24px; border-top: 1px solid var(--line); } a { color: var(--accent); }
+  @media (max-width: 700px) { .shots { grid-template-columns: 1fr; } header h1 { font-size: 40px; } }
+</style></head>
+<body>
+<header>
+  <img class="icon" src="../icon/StashMac.iconset/icon_256x256.png" alt="">
+  <h1>Stash for Mac</h1>
+  <p class="tag">Encrypted backup into the free storage you already have.</p>
+  <a class="cta" href="https://github.com/keithadler/stashmac/releases/latest">Download for macOS 14+</a>
+  <a class="cta secondary" href="https://github.com/keithadler/stashmac">Source on GitHub</a>
+  <p style="margin:18px 0 0;font-size:14px;opacity:.85">Free · open source · MIT · no account · no server · universal binary</p>
+</header>
+<div class="hero"><img src="screenshots/main.png" alt="Stash for Mac window"></div>
+<main>
+<h2>The idea</h2>
+<p>You already pay for storage: the Google Drive that comes with Gmail, the OneDrive that comes with Microsoft 365, iCloud, Dropbox. Stash for Mac backs up the folders you care about into it, scrambled on your Mac first, so the provider only ever holds blobs it cannot read. You hold the key, as 24 words and a QR code on a card.</p>
+<ol class="rules">
+  <li><strong>Nothing readable leaves the Mac.</strong> Every piece is encrypted with ChaChaPoly and named by a keyed hash. The provider learns sizes and timing, nothing else.</li>
+  <li><strong>No password, no account.</strong> The app makes a random key and shows it once on a printable card. A typo is caught by a checksum; a photo of the card restores everything on a new Mac.</li>
+  <li><strong>A backup you can check.</strong> Every week it restores a random file to prove the path works, and tells you in plain words.</li>
+  <li><strong>Never downloads behind your back.</strong> Files that only exist in the cloud are listed, not fetched.</li>
+</ol>
+<h2>What it does</h2>
+<div class="grid">
+  <div class="card"><h3>Any folder is a destination</h3><p>iCloud Drive, Google Drive, OneDrive and Dropbox all appear as folders through their own apps, so there are no API keys and nothing to sign up for. External disks and NAS too.</p></div>
+  <div class="card"><h3>Only what changed</h3><p>Files are split into 4 MB pieces and stored once. A second backup of an unchanged folder uploads nothing.</p></div>
+  <div class="card"><h3>Snapshots that age out</h3><p>Keep the last 30. Pieces nobody references are deleted, so a free tier stays free.</p></div>
+  <div class="card"><h3>Restore anything</h3><p>A file, a folder, or everything, from any snapshot, to a place you choose. A damaged piece fails that one file and nothing partial is written.</p></div>
+  <div class="card"><h3>Runs itself</h3><p>Hourly or daily while the app is open, only to destinations that are reachable, with a menu bar item and a notification only when something needs you.</p></div>
+  <div class="card"><h3>A real command line</h3><p><code>stashmac</code> with <code>--json</code> everywhere, exit codes, scriptable restores.</p></div>
+</div>
+<div class="shots" style="margin-top:28px"><img src="screenshots/card.png" alt="Recovery card"><img src="screenshots/settings.png" alt="Settings"></div>
+<h2>Compared</h2>
+<table>
+<tr><th></th><th>Stash for Mac</th><th>Arq</th><th>Backblaze</th><th>Time Machine</th></tr>
+<tr><td>Uses storage you already have</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">No, its own</td><td class="n">Local disk</td></tr>
+<tr><td>Encrypted before upload, key only with you</td><td class="y">Yes</td><td class="y">Yes</td><td>Optional</td><td>Optional</td></tr>
+<tr><td>Recovery card, no password to forget</td><td class="y">Yes</td><td class="n">Password</td><td class="n">Password</td><td class="n">Password</td></tr>
+<tr><td>Weekly automatic restore test</td><td class="y">Yes</td><td class="n">No</td><td class="n">No</td><td class="n">No</td></tr>
+<tr><td>Open source</td><td class="y">MIT</td><td class="n">No</td><td class="n">No</td><td class="n">No</td></tr>
+<tr><td>Price</td><td class="y">Free</td><td>$50 + storage</td><td>Subscription</td><td>Free, needs a disk</td></tr>
+</table>
+<p style="color:var(--muted);font-size:14px">From each product's public documentation at the time of writing; corrections welcome.</p>
+<h2>Honest limits</h2>
+<p>Free tiers are small: 15 GB with Google (shared with Gmail), 5 GB OneDrive, 5 GB iCloud. This is for the documents and photos that matter, not a full-disk clone. Upload speed is the provider's. If the account is lost, so is that copy, which is why the app nags for a second destination. And if the card is lost with the Mac, nobody can read the backup, including you.</p>
+<h2>Install</h2>
+<pre># download the DMG from the releases page, drag to Applications, open, make a key
+# or build it yourself, no Xcode needed:
+git clone https://github.com/keithadler/stashmac && cd stashmac && ./build-app.sh --install --run</pre>
+</main>
+<footer>Stash for Mac is MIT licensed. Mac and macOS are trademarks of Apple Inc. Google Drive, OneDrive, iCloud, Dropbox, Arq and Backblaze belong to their owners and are named only to identify those products.</footer>
+</body></html>

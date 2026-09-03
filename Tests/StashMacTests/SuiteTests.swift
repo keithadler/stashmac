@@ -11,4 +11,5 @@ final class SuiteTests: XCTestCase {
     @MainActor func testChunk() { runSuite("Chunk") }
     @MainActor func testBackup() { runSuite("Backup") }
     @MainActor func testScheduler() { runSuite("Scheduler") }
+    @MainActor func testPrune() { runSuite("Prune") }
 }

@@ -90,16 +90,21 @@ final class StashModel: ObservableObject {
         busy = String(localized: "Backing up…"); progress = 0
         Task.detached { [key] in
             var lines: [String] = []
+            var failures: [String] = []
             for d in dests {
                 do {
                     let r = try Backup.run(sources: sources, destination: d, key: key) { done, total, _ in
                         Task { @MainActor in self.progress = total > 0 ? Double(done) / Double(total) : 1 }
                     }
+                    let pruned = try? Prune.run(destination: d, key: key)
                     lines.append(String(format: String(localized: "%@: %lld files, %@ new"), d.lastPathComponent, r.files, ByteCountFormatter.string(fromByteCount: r.newBytes, countStyle: .file))
-                                 + (r.skippedPlaceholders > 0 ? String(format: String(localized: ", %lld cloud placeholders listed"), r.skippedPlaceholders) : ""))
-                } catch { lines.append("\(d.lastPathComponent): \(error.localizedDescription)") }
+                                 + (r.skippedPlaceholders > 0 ? String(format: String(localized: ", %lld cloud placeholders listed"), r.skippedPlaceholders) : "")
+                                 + ((pruned?.bytesFreed ?? 0) > 0 ? String(format: String(localized: ", %@ reclaimed"), ByteCountFormatter.string(fromByteCount: pruned!.bytesFreed, countStyle: .file)) : ""))
+                    if !r.unreadable.isEmpty { failures.append(String(format: String(localized: "%lld files could not be read in %@"), r.unreadable.count, d.lastPathComponent)) }
+                } catch { lines.append("\(d.lastPathComponent): \(error.localizedDescription)"); failures.append("\(d.lastPathComponent): \(error.localizedDescription)") }
             }
             let summary = lines.joined(separator: "\n")
+            if !failures.isEmpty && reason == "schedule" { Notify.post(String(localized: "Backup needs attention"), failures.joined(separator: "\n")) }
             await MainActor.run {
                 Config.lastBackup = Date(); self.lastBackup = Config.lastBackup
                 self.lastMessage = summary; self.busy = nil; self.refreshSnapshots()
@@ -107,17 +112,20 @@ final class StashModel: ObservableObject {
         }
     }
 
-    func verify() {
+    func verify(reason: String = "manual") {
         guard let key, let d = availableDestinations.first, busy == nil else { return }
         busy = String(localized: "Verifying…"); progress = 0
         Task.detached { [key] in
             let msg: String
+            var ok = true
             do {
                 let v = try Restore.verify(destination: d, key: key) { done, total in Task { @MainActor in self.progress = Double(done) / Double(max(total, 1)) } }
+                ok = v.chunksBad.isEmpty && v.chunksMissing.isEmpty && v.sampleOK != false
                 msg = String(format: String(localized: "%lld chunks checked, %lld bad, %lld missing. Sample restore %@."), v.chunksChecked, v.chunksBad.count, v.chunksMissing.count,
                              v.sampleOK == true ? String(localized: "OK") : String(localized: "FAILED"))
                 Config.lastVerify = Date()
-            } catch { msg = error.localizedDescription }
+            } catch { msg = error.localizedDescription; ok = false }
+            if !ok && reason == "schedule" { Notify.post(String(localized: "Backup check failed"), msg) }
             await MainActor.run { self.lastMessage = msg; self.busy = nil }
         }
     }
@@ -312,6 +320,7 @@ struct SettingsView: View {
     @AppStorage("autoUpdateCheck") private var autoUpdate = false
     @AppStorage("schedule") private var schedule = Config.Schedule.daily.rawValue
     @AppStorage("weeklyVerify") private var weeklyVerify = true
+    @AppStorage("keepSnapshots") private var keepSnapshots = 30
     @AppStorage("menuBar") private var menuBar = true
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     var body: some View {
@@ -319,6 +328,8 @@ struct SettingsView: View {
             Section("When to back up") {
                 Picker("Back up", selection: $schedule) { ForEach(Config.Schedule.allCases) { Text($0.label).tag($0.rawValue) } }
                 Text("Runs quietly in the background when a destination is reachable. Uploads only what changed.").font(.caption).foregroundStyle(.secondary)
+                Stepper(value: $keepSnapshots, in: 1...365) { Text(String(format: String(localized: "Keep the last %lld snapshots"), keepSnapshots)) }
+                Text("Older snapshots and the pieces only they used are deleted after each backup, so the destination stays a sensible size.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Check the backup once a week by restoring a random file", isOn: $weeklyVerify)
                 Toggle("Show Stash for Mac in the menu bar", isOn: $menuBar)
                 Toggle("Open Stash for Mac when I log in", isOn: $launchAtLogin).onChange(of: launchAtLogin) { _, on in
@@ -340,6 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Updates.scheduleBackgroundChecks()
         Scheduler.shared.start()
+        if Config.schedule != .off { Notify.requestPermissionIfNeeded() }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !Config.menuBar }
 }

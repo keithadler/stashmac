@@ -36,7 +36,7 @@ final class Scheduler {
         if Scheduler.isDue(last: Config.lastBackup, interval: Config.schedule.interval) {
             model.backUp(reason: "schedule")
         } else if Config.weeklyVerify, Scheduler.isDue(last: Config.lastVerify, interval: 7 * 86400), Config.lastBackup != nil {
-            model.verify()
+            model.verify(reason: "schedule")
         }
     }
 }

@@ -22,10 +22,11 @@ enum CLI {
       stashmac snapshots [--json]       list snapshots at each destination
       stashmac restore <snapshot|latest> <target folder> [--only <path>] [--dest <folder>]
       stashmac verify [--json]          open every chunk of the latest snapshot; restore one random file
+      stashmac prune [--keep N] [--json] drop old snapshots and the chunks only they used (runs after each backup)
       stashmac seal <in> <out>          encrypt one file as a chunk (proof of the format)
       stashmac open <in> <out>          decrypt one chunk
       stashmac status [--json]
-      stashmac screenshots <dir>        render the windows with demo data (dark and light) for the README
+      stashmac screenshots <dir> [--announce]   render windows and promo cards from demo data; --announce copies the kit to the Desktop
       stashmac selftest [--filter S] [--list] [--json]
       stashmac help | version
 
@@ -59,7 +60,7 @@ enum CLI {
     static func value(_ n: String, _ a: [String]) -> String? { guard let i = a.firstIndex(of: n), i + 1 < a.count else { return nil }; return a[i + 1] }
     static func positional(_ a: [String]) -> [String] {
         var out: [String] = []; var skip = false
-        for x in a { if skip { skip = false; continue }; if ["--filter", "--qr", "--only", "--dest"].contains(x) { skip = true; continue }; if x.hasPrefix("--") { continue }; out.append(x) }
+        for x in a { if skip { skip = false; continue }; if ["--filter", "--qr", "--only", "--dest", "--keep"].contains(x) { skip = true; continue }; if x.hasPrefix("--") { continue }; out.append(x) }
         return out
     }
 
@@ -168,6 +169,7 @@ enum CLI {
                 }
             }
             Config.lastBackup = Date()
+            for d in Config.destinations { if let p = try? Prune.run(destination: d, key: k), p.bytesFreed > 0, !js { print("\(d.path): reclaimed \(ByteCountFormatter.string(fromByteCount: p.bytesFreed, countStyle: .file)) from \(p.snapshotsRemoved) old snapshots") } }
             if js { print(json(["results": results])) }
             return worst
 
@@ -216,6 +218,20 @@ enum CLI {
             if js { print(json(["results": out])) }
             return worst
 
+        case "prune":
+            guard let k = KeyStore.load() else { fputs("no key on this Mac\n", stderr); return 2 }
+            let keep = Int(value("--keep", args) ?? "") ?? Config.keepSnapshots
+            var out: [[String: Any]] = []
+            for d in Config.destinations {
+                do {
+                    let p = try Prune.run(destination: d, key: k, keep: keep)
+                    out.append(["destination": d.path, "snapshots_removed": p.snapshotsRemoved, "chunks_removed": p.chunksRemoved, "bytes_freed": p.bytesFreed, "chunks_kept": p.chunksKept, "bytes_kept": p.bytesKept])
+                    if !js { print("\(d.path): removed \(p.snapshotsRemoved) snapshots and \(p.chunksRemoved) chunks (\(ByteCountFormatter.string(fromByteCount: p.bytesFreed, countStyle: .file))); keeping \(ByteCountFormatter.string(fromByteCount: p.bytesKept, countStyle: .file))") }
+                } catch { fputs("\(d.path): \(error.localizedDescription)\n", stderr); return 2 }
+            }
+            if js { print(json(["results": out])) }
+            return 0
+
         case "status":
             let k = KeyStore.load()
             let iso = ISO8601DateFormatter()
@@ -229,6 +245,8 @@ enum CLI {
                 destinations:  \(Config.destinations.isEmpty ? "none (stashmac dest <folder>)" : Config.destinations.map(\.path).joined(separator: ", "))
                 last backup:   \(Config.lastBackup.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
                 last verify:   \(Config.lastVerify.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
+                keep:          \(Config.keepSnapshots) snapshots
+                at destination:\(k == nil ? " ?" : Config.destinations.map { " " + ByteCountFormatter.string(fromByteCount: Prune.size(destination: $0, key: k!), countStyle: .file) }.joined(separator: ","))
                 """)
             }
             return k == nil || Config.sources.isEmpty || Config.destinations.isEmpty ? 1 : 0
@@ -236,8 +254,11 @@ enum CLI {
         case "screenshots":
             guard let dir = pos.first else { fputs("screenshots needs a directory\n", stderr); return 64 }
             do {
-                let files = try MainActor.assumeIsolated { try Screenshots.render(to: URL(fileURLWithPath: dir)) }
-                print(files.map { "wrote \($0.path)" }.joined(separator: "\n")); return 0
+                let out = URL(fileURLWithPath: dir)
+                let files = try MainActor.assumeIsolated { try Screenshots.render(to: out) }
+                var lines = files.map { "wrote \($0.path)" }
+                if flag("--announce", args) { lines.append("announcement kit: \(try Screenshots.announce(from: out).path)") }
+                print(lines.joined(separator: "\n")); return 0
             } catch { fputs("\(error.localizedDescription)\n", stderr); return 2 }
 
         case "selftest":

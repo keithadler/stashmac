@@ -36,6 +36,7 @@ enum Config {
         get { Schedule(rawValue: defaults.string(forKey: "schedule") ?? "") ?? .daily }
         set { defaults.set(newValue.rawValue, forKey: "schedule") }
     }
+    static var keepSnapshots: Int { let v = defaults.integer(forKey: "keepSnapshots"); return v > 0 ? v : 30 }
     static var weeklyVerify: Bool { defaults.object(forKey: "weeklyVerify") as? Bool ?? true }
     static var menuBar: Bool { defaults.object(forKey: "menuBar") as? Bool ?? true }
 

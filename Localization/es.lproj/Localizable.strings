@@ -80,3 +80,9 @@
 "The chunk is damaged or was made with a different key. Nothing was written." = "La pieza está dañada o se creó con otra clave. No se escribió nada.";
 "Settings" = "Ajustes";
 "iCloud Drive: 5 files, 4.4 MB new" = "iCloud Drive: 5 archivos, 4,4 MB nuevos";
+"Keep the last %lld snapshots" = "Conservar las últimas %lld instantáneas";
+"Older snapshots and the pieces only they used are deleted after each backup, so the destination stays a sensible size." = "Las instantáneas más antiguas y las piezas que solo ellas usaban se borran tras cada copia, para que el destino mantenga un tamaño razonable.";
+", %@ reclaimed" = ", %@ liberados";
+"%lld files could not be read in %@" = "%lld archivos no se pudieron leer en %@";
+"Backup needs attention" = "La copia necesita atención";
+"Backup check failed" = "La comprobación de la copia falló";

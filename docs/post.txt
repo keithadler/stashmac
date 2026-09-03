@@ -1,0 +1,35 @@
+Show HN: Stash for Mac – encrypted backup into the free storage you already have
+https://github.com/keithadler/stashmac
+
+Most people have 15 GB of Google Drive, 5 GB of OneDrive or iCloud, and no backup of the
+folder that matters. Stash for Mac backs up the folders you choose into any of those (they all
+mount as folders through their own apps, so no API keys, no accounts), encrypted on the Mac
+first with ChaChaPoly. The provider only ever sees blobs with keyed-hash names.
+
+No password: the app makes a random key and shows it once as 24 words plus a QR code on a
+printable card. Checksum catches typos; a photo of the card restores on a new Mac. The app
+never keeps a copy, so a lost card means an unreadable backup, and it says so up front.
+
+The part I cared about: it verifies itself. Every week it restores a random file to a temp
+folder to prove the whole path works. Old snapshots age out and unreferenced pieces are
+deleted so the free tier stays free. Never downloads cloud placeholders behind your back.
+
+Swift, CryptoKit, no dependencies, no Xcode project. MIT. macOS 14+.
+
+---- X / Mastodon ----
+
+Stash for Mac: encrypted backup into the free storage you already have.
+
+Google Drive, OneDrive, iCloud, Dropbox, any disk. Scrambled on your Mac first. Your key is
+24 words and a QR code on a card. Checks itself weekly. Free and MIT.
+
+github.com/keithadler/stashmac
+
+---- r/macapps ----
+
+Title: [Free, open source] Stash for Mac – encrypted backup into the cloud storage you already pay for
+
+Backs up chosen folders into your existing Google Drive / OneDrive / iCloud / Dropbox folder
+(or a disk), encrypted on the Mac first, so the provider can't read any of it. No account, no
+password: a random key on a printable card (24 words + QR). Weekly automatic restore test,
+snapshots that age out, never fetches cloud placeholders. Swift, no dependencies, MIT.
