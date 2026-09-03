@@ -23,7 +23,7 @@ enum RetentionSuite {
             t.check(weekRange.count >= 46 && weekRange.count <= 50, "about one per week for the year (\(weekRange.count))")
             let monthRange = kept.filter { $0 < days(365, before: now) }
             t.check(monthRange.count >= 4 && monthRange.count <= 6, "about one per month after (\(monthRange.count))")
-            t.check(keep.count < dates.count / 2, "thinning actually thins (\(keep.count) of \(dates.count))")
+            t.check(keep.count <= 140, "thinning actually thins (\(keep.count) of \(dates.count); at most 53 + 24 + 50 + 6 survive)")
             // Within a bucket the newest survives.
             let twoDaysApart = [days(20, before: now), days(20.5, before: now)]
             let k = Retention.thin(twoDaysApart, now: now, calendar: cal)
