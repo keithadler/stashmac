@@ -19,7 +19,7 @@
 </head>
 <body><main>
 <h1>Stash for Mac <small>Encrypted backup of the folders that matter, into storage you already have</small></h1>
-<nav><a href="#start">Getting started</a><a href="#card">The recovery card</a><a href="#where">Where to put it</a><a href="#restore">Restoring</a><a href="#space">Space</a><a href="#verify">Checking it works</a><a href="#cli">Command line</a><a href="#privacy">Privacy</a><a href="#trouble">Troubleshooting</a></nav>
+<nav><a href="#start">Getting started</a><a href="#card">The recovery card</a><a href="#where">Where to put it</a><a href="#skip">Leaving things out</a><a href="#restore">Restoring</a><a href="#space">Space</a><a href="#verify">Checking it works</a><a href="#cli">Command line</a><a href="#privacy">Privacy</a><a href="#trouble">Troubleshooting</a></nav>
 
 <h2 id="start">Getting started: three steps</h2>
 <ol>
@@ -47,8 +47,11 @@
 </table>
 <p>Inside the destination, the backup lives in a folder called <code>Stash for Mac</code>, one subfolder per key. Everything in it is encrypted. A README in that folder tells whoever finds it what it is and how to restore it.</p>
 
+<h2 id="skip">Leaving things out</h2>
+<p>Settings › Skip takes name patterns like <code>*.tmp</code> or <code>Caches</code> and a size cap. By default temp files, cache folders, virtual-machine disks and Photos libraries are skipped: the Photos library is one enormous package that changes every time you open it and has its own backup through iCloud. The backup report says how many files your rules skipped. <code>stashmac exclude add "*.mov"</code> and <code>stashmac exclude --max-mb 2048</code> do the same from the terminal.</p>
+
 <h2 id="restore">Restoring</h2>
-<p><strong>On this Mac:</strong> pick a snapshot in the window, click Restore…, choose where the files should go. They arrive in a folder named after the original, with their dates. Nothing is written over your current files unless you choose that folder.</p>
+<p><strong>On this Mac:</strong> pick a snapshot in the window and click Restore…. A tree of everything in that snapshot opens: pick files or folders (⌘-click for several) or leave nothing selected to restore it all, then choose where the files should go. They arrive in a folder named after the original, with their dates. Nothing is written over your current files unless you choose that folder.</p>
 <p><strong>On a new Mac:</strong> install Stash for Mac, click I Have a Recovery Card…, type the 24 words (or use <code>stashmac key restore --qr card.png</code> with a photo of the card), add the destination folder, and the snapshots appear.</p>
 <p>If a piece of the backup is damaged, that one file is reported by name and not written; every other file restores normally.</p>
 

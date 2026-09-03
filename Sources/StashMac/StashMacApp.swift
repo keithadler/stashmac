@@ -180,6 +180,7 @@ struct MainView: View {
     @ObservedObject private var model = StashModel.shared
     @State private var showCard = false
     @State private var showSnapshots = false
+    @State private var browsing: SnapshotInfo?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -205,6 +206,7 @@ struct MainView: View {
         .frame(minWidth: 760, idealWidth: 860, minHeight: 420, idealHeight: 520)
         .sheet(isPresented: $showCard) { if let key = model.key { RecoveryCardView(key: key) } }
         .sheet(isPresented: $showSnapshots) { SnapshotsView() }
+        .sheet(item: $browsing) { snap in RestoreBrowser(snapshot: snap) }
         .onAppear { model.refreshSnapshots() }
     }
 
@@ -246,7 +248,7 @@ struct MainView: View {
                             Text(String(format: String(localized: "%lld files, %@, from %@"), s.files, ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file), s.host)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Restore…") { pick(message: "Choose where to put the restored files. They go into a folder named after the original.") { model.restore(s, to: $0) } }.font(.caption)
+                        Button("Restore…") { browsing = s }.font(.caption)
                     }
                 }
                 HStack {
@@ -291,6 +293,103 @@ struct MainView: View {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         do { let k = try MasterKey(words: field.stringValue); KeyStore.save(k); model.key = k; model.refreshSnapshots() }
         catch { NSAlert(error: error).runModal() }
+    }
+}
+
+/// A tree of everything in one snapshot; pick files or folders, or restore it all.
+struct RestoreBrowser: View {
+    let snapshot: SnapshotInfo
+    @ObservedObject private var model = StashModel.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var tree: [Node] = []
+    @State private var selection = Set<String>()
+    @State private var loading = true
+
+    struct Node: Identifiable, Hashable {
+        let id: String            // "<source name>/<relative path>" for files, folders end without a slash
+        let name: String
+        let size: Int64
+        var children: [Node]?
+        var isFolder: Bool { children != nil }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(String(format: String(localized: "Restore from %@"), snapshot.createdAt.formatted(date: .abbreviated, time: .shortened))).font(.title2).bold()
+                    Text(String(format: String(localized: "%lld files, %@, from %@"), snapshot.files, ByteCountFormatter.string(fromByteCount: snapshot.bytes, countStyle: .file), snapshot.host)).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            if loading { ProgressView().controlSize(.small) }
+            List(tree, children: \.children, selection: $selection) { node in
+                HStack {
+                    Image(systemName: node.isFolder ? "folder" : "doc").foregroundStyle(.secondary)
+                    Text(node.name)
+                    Spacer()
+                    Text(ByteCountFormatter.string(fromByteCount: node.size, countStyle: .file)).font(.caption).foregroundStyle(.secondary)
+                }
+                .tag(node.id)
+            }
+            .frame(minHeight: 280)
+            Text("Select files or folders (⌘-click for several), or restore everything. Restored files go into a folder named after the original, in the place you choose.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("Cancel") { dismiss() }
+                Spacer()
+                Button(selection.isEmpty ? "Restore Everything…" : String(format: String(localized: "Restore %lld Selected…"), selection.count)) { choose() }.keyboardShortcut(.defaultAction).disabled(model.busy != nil || loading)
+            }
+        }
+        .padding(20).frame(width: 640, height: 520)
+        .task { await load() }
+    }
+
+    private func load() async {
+        guard let key = model.key, let d = model.availableDestinations.first else { loading = false; return }
+        let name = snapshot.fileName
+        let built: [Node] = await Task.detached {
+            guard let m = try? Restore.manifest(named: name, destination: d, key: key) else { return [] }
+            // Build a folder tree per source from the flat relative paths.
+            final class Dir { var files: [(String, Int64)] = []; var dirs: [String: Dir] = [:] }
+            var roots: [String: Dir] = [:]
+            for f in m.files {
+                let sourceName = URL(fileURLWithPath: m.sources[f.source]).lastPathComponent
+                let root = roots[sourceName] ?? Dir(); roots[sourceName] = root
+                var cur = root
+                let parts = f.path.split(separator: "/").map(String.init)
+                for p in parts.dropLast() { let next = cur.dirs[p] ?? Dir(); cur.dirs[p] = next; cur = next }
+                cur.files.append((parts.last ?? f.path, f.size))
+            }
+            func nodes(_ dir: Dir, prefix: String, relPrefix: String) -> [Node] {
+                var out: [Node] = []
+                for (n, sub) in dir.dirs.sorted(by: { $0.key < $1.key }) {
+                    let kids = nodes(sub, prefix: prefix + "/" + n, relPrefix: relPrefix.isEmpty ? n : relPrefix + "/" + n)
+                    out.append(Node(id: prefix + "/" + n, name: n, size: kids.reduce(0) { $0 + $1.size }, children: kids))
+                }
+                for (n, size) in dir.files.sorted(by: { $0.0 < $1.0 }) { out.append(Node(id: prefix + "/" + n, name: n, size: size, children: nil)) }
+                return out
+            }
+            return roots.sorted { $0.key < $1.key }.map { name, dir in
+                let kids = nodes(dir, prefix: name, relPrefix: "")
+                return Node(id: name, name: name, size: kids.reduce(0) { $0 + $1.size }, children: kids)
+            }
+        }.value
+        tree = built; loading = false
+    }
+
+    /// Node ids are "<source name>/<relative path>"; Restore wants relative paths, and a source root selects everything under it.
+    private func choose() {
+        let p = NSOpenPanel(); p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
+        p.message = String(localized: "Choose where to put the restored files. They go into a folder named after the original.")
+        guard p.runModal() == .OK, let target = p.url else { return }
+        var only: [String] = []
+        for id in selection {
+            let parts = id.split(separator: "/", maxSplits: 1).map(String.init)
+            if parts.count == 2 { only.append(parts[1]) } else { only = []; break }   // a whole source root: restore everything
+        }
+        dismiss()
+        model.restore(snapshot, to: target.standardizedFileURL, only: only)
     }
 }
 
@@ -415,6 +514,8 @@ struct SettingsView: View {
     @AppStorage("keepSnapshots") private var keepSnapshots = 30
     @AppStorage("retention") private var retention = Retention.Policy.last.rawValue
     @AppStorage("menuBar") private var menuBar = true
+    @AppStorage("maxFileMB") private var maxFileMB = 0
+    @State private var excludes = Config.excludePatterns.joined(separator: ", ")
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     var body: some View {
         Form {
@@ -433,6 +534,12 @@ struct SettingsView: View {
                     catch { launchAtLogin = SMAppService.mainApp.status == .enabled }
                 }
                 Text("Scheduled backups only happen while the app is open, so opening at login is the usual choice.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Skip") {
+                TextField("Name patterns, comma separated", text: $excludes, prompt: Text("*.tmp, Caches, *.photoslibrary"))
+                    .onSubmit { Config.excludePatterns = excludes.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
+                Text("Files and folders whose name matches are left out. Photos libraries are skipped by default: they have their own backup, and the library is one huge package that changes constantly.").font(.caption).foregroundStyle(.secondary)
+                Stepper(value: $maxFileMB, in: 0...100_000, step: 256) { Text(maxFileMB == 0 ? String(localized: "No size limit") : String(format: String(localized: "Skip files over %lld MB"), maxFileMB)) }
             }
             Section("Updates") {
                 Toggle("Check for a new version once a day", isOn: $autoUpdate)

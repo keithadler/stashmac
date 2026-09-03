@@ -18,10 +18,11 @@ enum CLI {
       stashmac key forget               remove the key from this Mac's Keychain
       stashmac add <folder>             back this folder up (repeatable); stashmac remove <folder>
       stashmac dest <folder>            a destination: any folder a provider syncs, a disk, a NAS
+      stashmac exclude [add|remove <pattern>] [--max-mb N]   name patterns to skip (*.tmp, Caches…) and a size cap
       stashmac backup [--json]          back up every folder to every destination now
       stashmac snapshots [--json]       list snapshots with what deleting each would free
       stashmac forget <snapshot>        delete one snapshot and the pieces only it used
-      stashmac restore <snapshot|latest> <target folder> [--only <path>] [--dest <folder>]
+      stashmac restore <snapshot|latest> <target folder> [--only <path>[,<path>…]] [--dest <folder>]
       stashmac verify [--json]          open every chunk of the latest snapshot; restore one random file
       stashmac prune [--keep N | --thin] [--json]  apply the retention policy now (also runs after each backup)
       stashmac seal <in> <out>          encrypt one file as a chunk (proof of the format)
@@ -61,7 +62,7 @@ enum CLI {
     static func value(_ n: String, _ a: [String]) -> String? { guard let i = a.firstIndex(of: n), i + 1 < a.count else { return nil }; return a[i + 1] }
     static func positional(_ a: [String]) -> [String] {
         var out: [String] = []; var skip = false
-        for x in a { if skip { skip = false; continue }; if ["--filter", "--qr", "--only", "--dest", "--keep"].contains(x) { skip = true; continue }; if x.hasPrefix("--") { continue }; out.append(x) }
+        for x in a { if skip { skip = false; continue }; if ["--filter", "--qr", "--only", "--dest", "--keep", "--max-mb"].contains(x) { skip = true; continue }; if x.hasPrefix("--") { continue }; out.append(x) }
         return out
     }
 
@@ -143,6 +144,17 @@ enum CLI {
             print("backups go to \(url.path)")
             return 0
 
+        case "exclude":
+            if let mb = value("--max-mb", args), let n = Int(mb) { Config.defaults.set(n, forKey: "maxFileMB") }
+            switch pos.first {
+            case "add": guard pos.count > 1 else { return 64 }; Config.excludePatterns += [pos[1]]
+            case "remove": guard pos.count > 1 else { return 64 }; Config.excludePatterns.removeAll { $0 == pos[1] }
+            default: break
+            }
+            let cap = Config.maxFileBytes
+            print(js ? json(["patterns": Config.excludePatterns, "max_bytes": cap]) : "skipping: \(Config.excludePatterns.joined(separator: ", "))\nsize cap: \(cap > 0 ? ByteCountFormatter.string(fromByteCount: cap, countStyle: .file) : "none")")
+            return 0
+
         case "backup":
             guard let k = KeyStore.load() else { fputs("no key on this Mac (stashmac key new)\n", stderr); return 2 }
             guard !Config.sources.isEmpty else { fputs("nothing to back up (stashmac add <folder>)\n", stderr); return 2 }
@@ -156,10 +168,11 @@ enum CLI {
                     }
                     if !js { fputs("\r", stderr) }
                     results.append(["destination": d.path, "files": r.files, "bytes": r.bytes, "new_chunks": r.newChunks, "new_bytes": r.newBytes,
-                                    "reused_chunks": r.reusedChunks, "skipped_placeholders": r.skippedPlaceholders, "unreadable": r.unreadable, "manifest": r.manifest])
+                                    "reused_chunks": r.reusedChunks, "skipped_placeholders": r.skippedPlaceholders, "skipped_by_rule": r.skippedByRule, "unreadable": r.unreadable, "manifest": r.manifest])
                     if !js {
                         print("\(d.path): \(r.files) files, \(ByteCountFormatter.string(fromByteCount: r.bytes, countStyle: .file)); uploaded \(r.newChunks) chunks (\(ByteCountFormatter.string(fromByteCount: r.newBytes, countStyle: .file))), reused \(r.reusedChunks)"
                               + (r.skippedPlaceholders > 0 ? "; \(r.skippedPlaceholders) cloud placeholders listed, not downloaded" : "")
+                              + (r.skippedByRule > 0 ? "; \(r.skippedByRule) skipped by your rules" : "")
                               + (r.unreadable.isEmpty ? "" : "; \(r.unreadable.count) unreadable"))
                     }
                     if r.skippedPlaceholders > 0 || !r.unreadable.isEmpty { worst = max(worst, 1) }
@@ -198,7 +211,8 @@ enum CLI {
             guard let snap = pos[0] == "latest" ? snaps.first?.fileName : snaps.first(where: { $0.fileName == pos[0] })?.fileName else { fputs("no such snapshot at \(dest.path)\n", stderr); return 2 }
             let target = URL(fileURLWithPath: pos[1])
             do {
-                let r = try Restore.run(snapshot: snap, destination: dest, key: k, to: target, only: value("--only", args))
+                let only = value("--only", args).map { $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } } ?? []
+                let r = try Restore.run(snapshot: snap, store: FolderStore(destination: dest, key: k), key: k, to: target, only: only)
                 print(js ? json(["restored": r.restored, "bytes": r.bytes, "failed": r.failed]) : "restored \(r.restored) files (\(ByteCountFormatter.string(fromByteCount: r.bytes, countStyle: .file))) into \(target.path)" + (r.failed.isEmpty ? "" : "\nFAILED:\n  " + r.failed.joined(separator: "\n  ")))
                 return r.failed.isEmpty ? 0 : 2
             } catch { fputs("\(error.localizedDescription)\n", stderr); return 2 }

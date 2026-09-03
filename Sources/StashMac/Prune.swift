@@ -19,74 +19,61 @@ enum Prune {
     /// Refuses to touch anything if a remaining manifest cannot be opened: a wrong key or a damaged
     /// manifest must never turn into deleted chunks.
     static func run(destination: URL, key: MasterKey, keep: Int = Config.keepSnapshots, policy: Retention.Policy = Config.retention, now: Date = Date()) throws -> PruneReport {
-        let layout = Layout(destination: destination, key: key)
-        let fm = FileManager.default
+        try run(store: FolderStore(destination: destination, key: key), key: key, keep: keep, policy: policy, now: now)
+    }
+
+    static func run(store: ChunkStore, key: MasterKey, keep: Int = Config.keepSnapshots, policy: Retention.Policy = Config.retention, now: Date = Date()) throws -> PruneReport {
         var report = PruneReport()
-        let manifests = layout.manifestFiles()
+        let manifests = store.manifestNames()
         // Open every manifest first: a wrong key or a damaged manifest must never turn into deleted chunks.
-        let opened = try manifests.map { try Manifest.open(try Data(contentsOf: $0), key: key) }
+        let opened = try manifests.map { try Manifest.open(try store.getManifest($0), key: key) }
         let dates = opened.map(\.createdAt)
         let keepSet = policy == .thin ? Retention.thin(dates, now: now) : Retention.last(dates, keep: keep)
         var referenced = Set<String>()
         for i in keepSet { for f in opened[i].files { referenced.formUnion(f.chunks) } }
-        for (i, url) in manifests.enumerated() where !keepSet.contains(i) {
-            try fm.removeItem(at: url); report.snapshotsRemoved += 1
+        for (i, name) in manifests.enumerated() where !keepSet.contains(i) {
+            try store.deleteManifest(name); report.snapshotsRemoved += 1
         }
-        guard let dirs = try? fm.contentsOfDirectory(at: layout.chunks, includingPropertiesForKeys: nil) else { return report }
-        for dir in dirs {
-            guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey]) else { continue }
-            for f in files {
-                let size = Int64((try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
-                if referenced.contains(f.lastPathComponent) { report.chunksKept += 1; report.bytesKept += size }
-                else { try fm.removeItem(at: f); report.chunksRemoved += 1; report.bytesFreed += size }
-            }
-            if (try? fm.contentsOfDirectory(atPath: dir.path))?.isEmpty == true { try? fm.removeItem(at: dir) }
+        for name in store.chunkNames() {
+            let size = store.chunkSize(name)
+            if referenced.contains(name) { report.chunksKept += 1; report.bytesKept += size }
+            else { try store.deleteChunk(name); report.chunksRemoved += 1; report.bytesFreed += size }
         }
         return report
     }
 
     /// Deletes one snapshot by name, then the chunks only it used.
     static func delete(snapshot: String, destination: URL, key: MasterKey) throws -> PruneReport {
-        let layout = Layout(destination: destination, key: key)
-        let url = layout.manifests.appendingPathComponent(snapshot)
-        _ = try Manifest.open(try Data(contentsOf: url), key: key)   // proves the key before deleting anything
-        try FileManager.default.removeItem(at: url)
-        var r = try run(destination: destination, key: key, keep: Int.max, policy: .last)
+        try delete(snapshot: snapshot, store: FolderStore(destination: destination, key: key), key: key)
+    }
+
+    static func delete(snapshot: String, store: ChunkStore, key: MasterKey) throws -> PruneReport {
+        _ = try Manifest.open(try store.getManifest(snapshot), key: key)   // proves the key before deleting anything
+        try store.deleteManifest(snapshot)
+        var r = try run(store: store, key: key, keep: Int.max, policy: .last)
         r.snapshotsRemoved = 1
         return r
     }
 
     /// Per snapshot: bytes held by chunks that no other snapshot references, i.e. what deleting it frees.
-    static func uniqueSizes(destination: URL, key: MasterKey) -> [String: Int64] {
-        let layout = Layout(destination: destination, key: key)
-        let manifests = layout.manifestFiles()
+    static func uniqueSizes(destination: URL, key: MasterKey) -> [String: Int64] { uniqueSizes(store: FolderStore(destination: destination, key: key), key: key) }
+
+    static func uniqueSizes(store: ChunkStore, key: MasterKey) -> [String: Int64] {
         var refs: [String: Int] = [:]
         var perSnapshot: [String: Set<String>] = [:]
-        for url in manifests {
-            guard let m = try? Manifest.open(try Data(contentsOf: url), key: key) else { continue }
+        for name in store.manifestNames() {
+            guard let data = try? store.getManifest(name), let m = try? Manifest.open(data, key: key) else { continue }
             let set = Set(m.files.flatMap(\.chunks))
-            perSnapshot[url.lastPathComponent] = set
+            perSnapshot[name] = set
             for c in set { refs[c, default: 0] += 1 }
         }
         var sizes: [String: Int64] = [:]
         for (name, set) in perSnapshot {
-            var total: Int64 = 0
-            for c in set where refs[c] == 1 {
-                total += Int64((try? layout.chunk(c).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
-            }
-            sizes[name] = total
+            sizes[name] = set.filter { refs[$0] == 1 }.reduce(0) { $0 + store.chunkSize($1) }
         }
         return sizes
     }
 
     /// Bytes the stash occupies at a destination (chunks plus manifests).
-    static func size(destination: URL, key: MasterKey) -> Int64 {
-        let layout = Layout(destination: destination, key: key)
-        guard let e = FileManager.default.enumerator(at: layout.root, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else { return 0 }
-        var total: Int64 = 0
-        for case let u as URL in e {
-            if let v = try? u.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]), v.isRegularFile == true { total += Int64(v.fileSize ?? 0) }
-        }
-        return total
-    }
+    static func size(destination: URL, key: MasterKey) -> Int64 { FolderStore(destination: destination, key: key).totalSize() }
 }

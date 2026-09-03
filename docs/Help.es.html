@@ -19,7 +19,7 @@
 </head>
 <body><main>
 <h1>Stash for Mac <small>Copia de seguridad cifrada de las carpetas que importan, en el almacenamiento que ya tienes</small></h1>
-<nav><a href="#start">Primeros pasos</a><a href="#card">La tarjeta de recuperación</a><a href="#where">Dónde guardarla</a><a href="#restore">Restaurar</a><a href="#space">Espacio</a><a href="#verify">Comprobar que funciona</a><a href="#cli">Terminal</a><a href="#privacy">Privacidad</a><a href="#trouble">Problemas</a></nav>
+<nav><a href="#start">Primeros pasos</a><a href="#card">La tarjeta de recuperación</a><a href="#where">Dónde guardarla</a><a href="#skip">Dejar cosas fuera</a><a href="#restore">Restaurar</a><a href="#space">Espacio</a><a href="#verify">Comprobar que funciona</a><a href="#cli">Terminal</a><a href="#privacy">Privacidad</a><a href="#trouble">Problemas</a></nav>
 
 <h2 id="start">Primeros pasos: tres pasos</h2>
 <ol>
@@ -47,8 +47,11 @@
 </table>
 <p>Dentro del destino, la copia vive en una carpeta llamada <code>Stash for Mac</code>, con una subcarpeta por clave. Todo lo que hay dentro está cifrado. Un README en esa carpeta explica a quien la encuentre qué es y cómo restaurarla.</p>
 
+<h2 id="skip">Dejar cosas fuera</h2>
+<p>Ajustes › Omitir acepta patrones de nombre como <code>*.tmp</code> o <code>Caches</code> y un tamaño máximo. Por defecto se omiten archivos temporales, carpetas de caché, discos de máquinas virtuales y fototecas: la fototeca es un paquete enorme que cambia cada vez que la abres y tiene su propia copia a través de iCloud. El informe de la copia dice cuántos archivos omitieron tus reglas. <code>stashmac exclude add "*.mov"</code> y <code>stashmac exclude --max-mb 2048</code> hacen lo mismo desde la terminal.</p>
+
 <h2 id="restore">Restaurar</h2>
-<p><strong>En este Mac:</strong> elige una instantánea en la ventana, pulsa Restaurar… y elige dónde deben ir los archivos. Llegan en una carpeta con el nombre de la original, con sus fechas. No se sobrescribe nada tuyo salvo que elijas esa carpeta.</p>
+<p><strong>En este Mac:</strong> elige una instantánea en la ventana y pulsa Restaurar…. Se abre un árbol con todo lo que contiene: elige archivos o carpetas (⌘-clic para varios) o no selecciones nada para restaurarlo todo, y luego elige dónde deben ir. Llegan en una carpeta con el nombre de la original, con sus fechas. No se sobrescribe nada tuyo salvo que elijas esa carpeta.</p>
 <p><strong>En un Mac nuevo:</strong> instala Stash for Mac, pulsa Tengo una tarjeta de recuperación…, escribe las 24 palabras (o usa <code>stashmac key restore --qr tarjeta.png</code> con una foto de la tarjeta), añade la carpeta de destino y aparecerán las instantáneas.</p>
 <p>Si una pieza de la copia está dañada, ese archivo se indica por su nombre y no se escribe; todos los demás se restauran con normalidad.</p>
 

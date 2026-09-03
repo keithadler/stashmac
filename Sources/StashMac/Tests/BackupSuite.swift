@@ -119,7 +119,7 @@ enum BackupSuite {
             try write(src, "node_modules/pkg/index.js", Data("y".utf8))
             try write(src, ".git/HEAD", Data("z".utf8))
             try FileManager.default.createSymbolicLink(at: src.appendingPathComponent("link"), withDestinationURL: URL(fileURLWithPath: "/etc"))
-            let (files, placeholders) = Backup.walk(src)
+            let (files, placeholders, _) = Backup.walk(src)
             t.equal(files.map(\.rel), ["real.txt"], "only the real file")
             t.check(placeholders.isEmpty, "no placeholders in a temp dir")
         },

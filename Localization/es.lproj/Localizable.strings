@@ -112,3 +112,12 @@
 "Delete Snapshot" = "Borrar instantánea";
 "Files that exist only in this snapshot are gone for good. Files that also exist in other snapshots are unaffected." = "Los archivos que solo existen en esta instantánea se pierden para siempre. Los que también están en otras instantáneas no se ven afectados.";
 "Older snapshots and the pieces only they used are deleted after each backup, so the destination stays a sensible size. See every snapshot and what it holds under Manage Snapshots in the main window." = "Las instantáneas más antiguas y las piezas que solo ellas usaban se borran tras cada copia, para que el destino mantenga un tamaño razonable. Verás cada instantánea y lo que contiene en Gestionar instantáneas, en la ventana principal.";
+"Restore from %@" = "Restaurar desde %@";
+"Select files or folders (⌘-click for several), or restore everything. Restored files go into a folder named after the original, in the place you choose." = "Selecciona archivos o carpetas (⌘-clic para varios), o restáuralo todo. Los archivos restaurados van en una carpeta con el nombre de la original, donde tú elijas.";
+"Restore Everything…" = "Restaurar todo…";
+"Restore %lld Selected…" = "Restaurar %lld seleccionados…";
+"Skip" = "Omitir";
+"Name patterns, comma separated" = "Patrones de nombre, separados por comas";
+"Files and folders whose name matches are left out. Photos libraries are skipped by default: they have their own backup, and the library is one huge package that changes constantly." = "Los archivos y carpetas cuyo nombre coincida se dejan fuera. Las fototecas se omiten por defecto: tienen su propia copia y son un paquete enorme que cambia constantemente.";
+"No size limit" = "Sin límite de tamaño";
+"Skip files over %lld MB" = "Omitir archivos de más de %lld MB";

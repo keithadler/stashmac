@@ -15,6 +15,7 @@ struct BackupReport: Equatable {
     var newBytes: Int64 = 0
     var reusedChunks = 0
     var skippedPlaceholders = 0
+    var skippedByRule = 0
     var unreadable: [String] = []
     var manifest: String = ""
 }
@@ -31,37 +32,52 @@ enum Backup {
 
     static let ignoredNames: Set<String> = [".DS_Store", ".localized", "Icon\r", ".Trash", "node_modules", ".git"]
 
+    /// Shell-style pattern match on a file or folder name (`*.tmp`, `Cache*`, `*.photoslibrary`).
+    static func matches(_ name: String, _ pattern: String) -> Bool {
+        fnmatch(pattern, name, FNM_CASEFOLD) == 0
+    }
+
     /// Regular files under a root, relative paths sorted, placeholders separated out. Never follows symlinks.
-    static func walk(_ root: URL) -> (files: [(rel: String, url: URL, size: Int64, modified: Date)], placeholders: [String]) {
+    /// `exclude` are name patterns; `maxBytes` skips larger files (0 = no cap). Both counted in `skipped`.
+    static func walk(_ root: URL, exclude: [String] = Config.excludePatterns, maxBytes: Int64 = Config.maxFileBytes) -> (files: [(rel: String, url: URL, size: Int64, modified: Date)], placeholders: [String], skipped: Int) {
         var files: [(String, URL, Int64, Date)] = []
         var placeholders: [String] = []
+        var skipped = 0
         let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey, .nameKey]
-        guard let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys, options: [], errorHandler: { _, _ in true }) else { return ([], []) }
+        guard let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys, options: [], errorHandler: { _, _ in true }) else { return ([], [], 0) }
         let rootPath = root.standardizedFileURL.path + "/"
         for case let url as URL in e {
             guard let v = try? url.resourceValues(forKeys: Set(keys)) else { continue }
             if let n = v.name, ignoredNames.contains(n) { if v.isDirectory == true { e.skipDescendants() }; continue }
+            if let n = v.name, exclude.contains(where: { matches(n, $0) }) { skipped += 1; if v.isDirectory == true { e.skipDescendants() }; continue }
             if v.isSymbolicLink == true { if v.isDirectory == true { e.skipDescendants() }; continue }
             guard v.isRegularFile == true else { continue }
             let rel = String(url.standardizedFileURL.path.dropFirst(rootPath.count))
             if isDataless(url) { placeholders.append(rel); continue }
-            files.append((rel, url, Int64(v.fileSize ?? 0), v.contentModificationDate ?? .distantPast))
+            let size = Int64(v.fileSize ?? 0)
+            if maxBytes > 0 && size > maxBytes { skipped += 1; continue }
+            files.append((rel, url, size, v.contentModificationDate ?? .distantPast))
         }
         files.sort { $0.0 < $1.0 }
-        return (files.map { (rel: $0.0, url: $0.1, size: $0.2, modified: $0.3) }, placeholders)
+        return (files.map { (rel: $0.0, url: $0.1, size: $0.2, modified: $0.3) }, placeholders, skipped)
     }
 
-    /// Runs one backup of `sources` into `destination`. `progress` gets (files done, files total, bytes done).
+    /// Runs one backup of `sources` into a folder destination. `progress` gets (files done, files total, bytes done).
     static func run(sources: [URL], destination: URL, key: MasterKey, progress: ((Int, Int, Int64) -> Void)? = nil) throws -> BackupReport {
-        let layout = Layout(destination: destination, key: key)
-        try layout.prepare()
+        try run(sources: sources, store: FolderStore(destination: destination, key: key), key: key, progress: progress)
+    }
+
+    /// Runs one backup of `sources` into any chunk store.
+    static func run(sources: [URL], store: ChunkStore, key: MasterKey, progress: ((Int, Int, Int64) -> Void)? = nil) throws -> BackupReport {
+        try store.prepare()
         var report = BackupReport()
         var manifest = Manifest(sources: sources.map(\.path), files: [])
         var walked: [(source: Int, rel: String, url: URL, size: Int64, modified: Date)] = []
         for (i, s) in sources.enumerated() {
-            let (files, placeholders) = walk(s)
+            let (files, placeholders, skipped) = walk(s)
             walked += files.map { (i, $0.rel, $0.url, $0.size, $0.modified) }
             manifest.skippedPlaceholders += placeholders.map { s.lastPathComponent + "/" + $0 }
+            report.skippedByRule += skipped
         }
         report.skippedPlaceholders = manifest.skippedPlaceholders.count
         var done: Int64 = 0
@@ -75,13 +91,11 @@ enum Backup {
                 if piece.isEmpty && readAny { break }
                 readAny = true
                 let name = Chunk.name(for: piece, key: key)
-                let target = layout.chunk(name)
-                if FileManager.default.fileExists(atPath: target.path) {
+                if store.hasChunk(name) {
                     report.reusedChunks += 1
                 } else {
-                    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
                     let blob = try Chunk.seal(piece, key: key)
-                    try blob.write(to: target, options: .atomic)
+                    try store.putChunk(name, blob)
                     report.newChunks += 1; report.newBytes += Int64(blob.count)
                 }
                 names.append(name)
@@ -94,10 +108,10 @@ enum Backup {
         }
         // Two backups in the same millisecond still get distinct names.
         var name = manifest.fileName
-        var url = layout.manifests.appendingPathComponent(name)
+        let existing = Set(store.manifestNames())
         var n = 1
-        while FileManager.default.fileExists(atPath: url.path) { name = manifest.fileName.replacingOccurrences(of: ".stsm", with: "-\(n).stsm"); url = layout.manifests.appendingPathComponent(name); n += 1 }
-        try manifest.sealed(key: key).write(to: url, options: .atomic)
+        while existing.contains(name) { name = manifest.fileName.replacingOccurrences(of: ".stsm", with: "-\(n).stsm"); n += 1 }
+        try store.putManifest(name, try manifest.sealed(key: key))
         report.manifest = name
         return report
     }

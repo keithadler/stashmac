@@ -40,6 +40,13 @@ enum Config {
         get { Retention.Policy(rawValue: defaults.string(forKey: "retention") ?? "") ?? .last }
         set { defaults.set(newValue.rawValue, forKey: "retention") }
     }
+    static let defaultExcludes = ["*.tmp", "*.part", "*.crdownload", "Cache", "Caches", ".cache", "*.photoslibrary", "*.vmdk", "*.vdi"]
+    static var excludePatterns: [String] {
+        get { defaults.stringArray(forKey: "excludePatterns") ?? defaultExcludes }
+        set { defaults.set(newValue, forKey: "excludePatterns") }
+    }
+    /// 0 means no cap.
+    static var maxFileBytes: Int64 { Int64(defaults.integer(forKey: "maxFileMB")) * 1_048_576 }
     static var keepSnapshots: Int { let v = defaults.integer(forKey: "keepSnapshots"); return v > 0 ? v : 30 }
     static var weeklyVerify: Bool { defaults.object(forKey: "weeklyVerify") as? Bool ?? true }
     static var menuBar: Bool { defaults.object(forKey: "menuBar") as? Bool ?? true }
