@@ -22,6 +22,8 @@ enum Screenshots {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("stashmac-shots-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
         KeyStore.fileDirectory = tmp
+        Manifest.hostOverride = "Sam's MacBook"
+        defer { Manifest.hostOverride = nil }
         Config.defaults = UserDefaults(suiteName: "com.keithadler.stashmac.screenshots")!
         defer { Config.defaults.removePersistentDomain(forName: "com.keithadler.stashmac.screenshots") }
         let key = MasterKey(entropy: Data((0..<32).map { UInt8(($0 * 37 + 11) & 0xff) }))

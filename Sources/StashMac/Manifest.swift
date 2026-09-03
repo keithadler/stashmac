@@ -16,12 +16,14 @@ struct Manifest: Codable {
     }
     var format = 1
     var createdAt = Date()
-    var host = Host.current().localizedName ?? "Mac"
+    var host = Manifest.hostOverride ?? Host.current().localizedName ?? "Mac"
     var sources: [String]        // absolute source roots at backup time
     var files: [File]
     var skippedPlaceholders: [String] = []   // dataless files listed, never downloaded
 
     var totalBytes: Int64 { files.reduce(0) { $0 + $1.size } }
+    /// Screenshots and tests use a sample name instead of the real Mac's.
+    nonisolated(unsafe) static var hostOverride: String?
 
     static let magic = Data("STSM1".utf8)
 
