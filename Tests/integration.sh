@@ -29,7 +29,9 @@ check "snapshots listed"            '"$B" snapshots --json | grep -c "\"snapshot
 check "verify ok"                   '"$B" verify --json | grep -q "\"sample_ok\" : true"'
 check "restore identical"           '"$B" restore latest "$OUT/r" >/dev/null && diff -r -x node_modules "$SRC" "$OUT/r/$(basename "$SRC")" >/dev/null'
 check "restore subtree"             '"$B" restore latest "$OUT/s" --only photos >/dev/null && [ -f "$OUT/s/$(basename "$SRC")/photos/big.bin" ] && [ ! -f "$OUT/s/$(basename "$SRC")/notes.txt" ]'
-check "tampered chunk reported"     'c=$(find "$DEST/Stash for Mac" -path "*/chunks/*" -type f | head -1); printf "x" >> "$c"; "$B" verify --json --dest "$DEST" | grep -q "\"bad\" : \\[" && ! "$B" verify >/dev/null 2>&1'
+c=$(find "$DEST/Stash for Mac" -path "*/chunks/*" -type f | head -1); printf "x" >> "$c"
+VOUT=$("$B" verify --json 2>/dev/null); VEXIT=$?
+check "tampered chunk reported"     '[ "$VEXIT" = 2 ] && echo "$VOUT" | python3 -c "import json,sys; rs=json.load(sys.stdin)[\"results\"]; sys.exit(0 if any(r.get(\"bad\") for r in rs) else 1)"'
 check "key forget then restore words" '"$B" key forget >/dev/null && "$B" key restore "$WORDS" >/dev/null && "$B" snapshots --json | grep -q snapshot'
 check "wrong word rejected"         '! "$B" key restore "$(echo "$WORDS" | sed "s/^[a-z]*/zoo/")" >/dev/null 2>&1'
 check "selftest"                    '"$B" selftest --json | grep -q "\"failed\" : 0"'
