@@ -21,7 +21,8 @@ struct StashMacApp: App {
                 CommandGroup(replacing: .newItem) { }
                 CommandGroup(after: .appInfo) { Button("Check for Updates…") { Updates.checkAndPresent() } }
                 CommandGroup(replacing: .help) {
-                    Button("Stash for Mac Help") { NSWorkspace.shared.open(URL(string: "https://github.com/keithadler/stashmac#readme")!) }
+                    Button("Stash for Mac Help") { Help.open() }.keyboardShortcut("?")
+                    Button("Report a Problem…") { NSWorkspace.shared.open(URL(string: "https://github.com/keithadler/stashmac/issues")!) }
                 }
             }
         Settings { SettingsView() }
@@ -326,4 +327,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Scheduler.shared.start()
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !Config.menuBar }
+}
+
+
+/// Help lives inside the bundle (docs/Help.html, Help.es.html by locale); GitHub is the fallback.
+enum Help {
+    static var pageName: String { (Locale.preferredLanguages.first ?? "en").hasPrefix("es") ? "Help.es" : "Help" }
+    static var bundledPage: URL? {
+        if let url = Bundle.main.url(forResource: pageName, withExtension: "html") { return url }
+        var url = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
+        while url.path != "/" {
+            if url.pathExtension == "app", let u = Bundle(url: url)?.url(forResource: pageName, withExtension: "html") { return u }
+            url = url.deletingLastPathComponent()
+        }
+        return nil
+    }
+    @MainActor static func open() {
+        NSWorkspace.shared.open(bundledPage ?? URL(string: "https://github.com/keithadler/stashmac#readme")!)
+    }
 }

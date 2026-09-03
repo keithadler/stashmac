@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stash for Mac Help</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6e6e73; --bg: #fff; --card: #f5f5f7; --accent: #1f7a55; --line: #e5e5ea; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --muted: #a1a1a6; --bg: #1c1c1e; --card: #2c2c2e; --accent: #5fc59a; --line: #3a3a3c; } }
+  body { margin: 0; font: 15px/1.55 -apple-system, "SF Pro Text", Helvetica, Arial, sans-serif; color: var(--fg); background: var(--bg); }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 4px; } h1 small { display: block; font-size: 15px; font-weight: 400; color: var(--muted); }
+  h2 { font-size: 20px; margin: 36px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 20px 0 6px; } .muted { color: var(--muted); }
+  code, pre { font: 13px ui-monospace, "SF Mono", Menlo, monospace; } pre { background: var(--card); padding: 12px 14px; border-radius: 8px; overflow-x: auto; }
+  .card { background: var(--card); border-radius: 10px; padding: 14px 16px; margin: 12px 0; } .warn { border-left: 4px solid #d9a400; }
+  nav a { margin-right: 14px; color: var(--accent); text-decoration: none; } a { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; } td, th { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; } th { color: var(--muted); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body><main>
+<h1>Stash for Mac <small>Encrypted backup of the folders that matter, into storage you already have</small></h1>
+<nav><a href="#start">Getting started</a><a href="#card">The recovery card</a><a href="#where">Where to put it</a><a href="#restore">Restoring</a><a href="#verify">Checking it works</a><a href="#cli">Command line</a><a href="#privacy">Privacy</a><a href="#trouble">Troubleshooting</a></nav>
+
+<h2 id="start">Getting started: three steps</h2>
+<ol>
+<li><strong>Make a key.</strong> Click Make a Key. The app shows your recovery card: 24 words and a QR code. Print it or save the PDF, then put it somewhere safe. This is the only way to read the backup, ever.</li>
+<li><strong>Choose folders to protect.</strong> Documents and Desktop are the usual first two. Photos libraries, project folders and anything else you'd miss.</li>
+<li><strong>Choose where it goes.</strong> Any folder that another app already syncs: your iCloud Drive, Google Drive, OneDrive or Dropbox folder, or an external disk or NAS. Then click Back Up Now.</li>
+</ol>
+<div class="card">Two destinations are safer than one. Accounts get locked, disks fail. Adding a second one costs nothing.</div>
+
+<h2 id="card">The recovery card</h2>
+<p>Stash for Mac makes a random key. There is no password to remember, and the app never keeps a copy of the card. The key lives in this Mac's Keychain for daily use, and on the card for everything else.</p>
+<ul>
+<li><strong>24 words</strong> in a standard word list, with a checksum: a mistyped word is caught before any restore starts.</li>
+<li><strong>A QR code</strong> of the same key. Scan it with the phone camera, or with Stash for Mac on a new Mac.</li>
+<li><strong>A fingerprint</strong>, eight characters, so two cards can be told apart.</li>
+</ul>
+<div class="card warn">If the card is lost and this Mac is gone, the backup cannot be read by anyone, including you. That is the point of it being secure. Keep the card like a passport.</div>
+
+<h2 id="where">Where to put it</h2>
+<table>
+<tr><th>Destination</th><th>How</th></tr>
+<tr><td>iCloud Drive</td><td>Choose the iCloud Drive folder (or any folder inside it). Files sync on their own.</td></tr>
+<tr><td>Google Drive, OneDrive, Dropbox</td><td>Install the provider's Mac app once, then choose its folder (usually under Library › CloudStorage or your home folder).</td></tr>
+<tr><td>External disk or NAS</td><td>Choose any folder on it. When it is unplugged, scheduled backups skip it and catch up later.</td></tr>
+</table>
+<p>Inside the destination, the backup lives in a folder called <code>Stash for Mac</code>, one subfolder per key. Everything in it is encrypted. A README in that folder tells whoever finds it what it is and how to restore it.</p>
+
+<h2 id="restore">Restoring</h2>
+<p><strong>On this Mac:</strong> pick a snapshot in the window, click Restore…, choose where the files should go. They arrive in a folder named after the original, with their dates. Nothing is written over your current files unless you choose that folder.</p>
+<p><strong>On a new Mac:</strong> install Stash for Mac, click I Have a Recovery Card…, type the 24 words (or use <code>stashmac key restore --qr card.png</code> with a photo of the card), add the destination folder, and the snapshots appear.</p>
+<p>If a piece of the backup is damaged, that one file is reported by name and not written; every other file restores normally.</p>
+
+<h2 id="verify">Checking it works</h2>
+<p>Verify opens every piece of the latest snapshot and restores one random file to a temporary place to prove the whole path. Settings › "Check the backup once a week" does this on its own. A backup that has never been verified is a guess.</p>
+
+<h2 id="cli">Command line</h2>
+<pre>stashmac key new | show | card card.pdf | restore "&lt;24 words&gt;" | restore --qr card.png | forget
+stashmac add ~/Documents           stashmac dest "~/Library/CloudStorage/GoogleDrive-you@gmail.com/My Drive"
+stashmac backup                    stashmac snapshots
+stashmac restore latest ~/Desktop/Restored [--only photos/2024]
+stashmac verify                    stashmac status</pre>
+<p>Every command takes <code>--json</code>. Exit codes: 0 fine, 1 something to look at, 2 problem.</p>
+
+<h2 id="privacy">Privacy</h2>
+<p>The provider receives only encrypted pieces with meaningless names, and an encrypted list of what they belong to. It can see when you back up and roughly how much, nothing more. The app itself has no account, no telemetry, and makes no network connection of its own; the only traffic is the provider's app syncing its folder. The optional update check is one request to GitHub with no identifiers.</p>
+<p>Not protected: a Mac with malware running while the app is open, a lost card, or someone with your account deleting the encrypted files. The full threat model is in the repository.</p>
+
+<h2 id="trouble">Troubleshooting</h2>
+<h3>"No destination is reachable"</h3><p>The disk is unplugged or the cloud folder has moved. Reconnect it, or add another destination.</p>
+<h3>Some files were "listed, not downloaded"</h3><p>They exist only in the cloud (an iCloud placeholder, say). Stash for Mac will not make your provider download them behind your back. Open them once, or turn off "Optimize Mac Storage" for that folder, and the next backup includes them.</p>
+<h3>Restore says a file failed</h3><p>A piece was damaged or changed after upload. Try the other destination; the same file there is usually fine.</p>
+<h3>I lost the card but this Mac still works</h3><p>Open the window, click the key in the corner, print a new card now.</p>
+<p class="muted" style="margin-top:40px">MIT licensed. Source and issues: <a href="https://github.com/keithadler/stashmac">github.com/keithadler/stashmac</a></p>
+</main></body></html>

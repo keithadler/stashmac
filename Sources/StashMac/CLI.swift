@@ -25,6 +25,7 @@ enum CLI {
       stashmac seal <in> <out>          encrypt one file as a chunk (proof of the format)
       stashmac open <in> <out>          decrypt one chunk
       stashmac status [--json]
+      stashmac screenshots <dir>        render the windows with demo data (dark and light) for the README
       stashmac selftest [--filter S] [--list] [--json]
       stashmac help | version
 
@@ -231,6 +232,13 @@ enum CLI {
                 """)
             }
             return k == nil || Config.sources.isEmpty || Config.destinations.isEmpty ? 1 : 0
+
+        case "screenshots":
+            guard let dir = pos.first else { fputs("screenshots needs a directory\n", stderr); return 64 }
+            do {
+                let files = try MainActor.assumeIsolated { try Screenshots.render(to: URL(fileURLWithPath: dir)) }
+                print(files.map { "wrote \($0.path)" }.joined(separator: "\n")); return 0
+            } catch { fputs("\(error.localizedDescription)\n", stderr); return 2 }
 
         case "selftest":
             if flag("--list", args) { TestKit.list(); return 0 }

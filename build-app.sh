@@ -44,6 +44,9 @@ if [ -f AppIcon.icns ]; then
   cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
 fi
+# Help pages travel inside the bundle so Help works offline.
+cp docs/Help.html "$APP/Contents/Resources/Help.html"
+cp docs/Help.es.html "$APP/Contents/Resources/Help.es.html"
 # Translations: Bundle.main finds these at runtime.
 for lproj in Localization/*.lproj; do
   [ -d "$lproj" ] && cp -R "$lproj" "$APP/Contents/Resources/"

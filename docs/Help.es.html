@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ayuda de Stash for Mac</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6e6e73; --bg: #fff; --card: #f5f5f7; --accent: #1f7a55; --line: #e5e5ea; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --muted: #a1a1a6; --bg: #1c1c1e; --card: #2c2c2e; --accent: #5fc59a; --line: #3a3a3c; } }
+  body { margin: 0; font: 15px/1.55 -apple-system, "SF Pro Text", Helvetica, Arial, sans-serif; color: var(--fg); background: var(--bg); }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 4px; } h1 small { display: block; font-size: 15px; font-weight: 400; color: var(--muted); }
+  h2 { font-size: 20px; margin: 36px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 20px 0 6px; } .muted { color: var(--muted); }
+  code, pre { font: 13px ui-monospace, "SF Mono", Menlo, monospace; } pre { background: var(--card); padding: 12px 14px; border-radius: 8px; overflow-x: auto; }
+  .card { background: var(--card); border-radius: 10px; padding: 14px 16px; margin: 12px 0; } .warn { border-left: 4px solid #d9a400; }
+  nav a { margin-right: 14px; color: var(--accent); text-decoration: none; } a { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; } td, th { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; } th { color: var(--muted); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body><main>
+<h1>Stash for Mac <small>Copia de seguridad cifrada de las carpetas que importan, en el almacenamiento que ya tienes</small></h1>
+<nav><a href="#start">Primeros pasos</a><a href="#card">La tarjeta de recuperación</a><a href="#where">Dónde guardarla</a><a href="#restore">Restaurar</a><a href="#verify">Comprobar que funciona</a><a href="#cli">Terminal</a><a href="#privacy">Privacidad</a><a href="#trouble">Problemas</a></nav>
+
+<h2 id="start">Primeros pasos: tres pasos</h2>
+<ol>
+<li><strong>Crea una clave.</strong> Pulsa Crear clave. La app muestra tu tarjeta de recuperación: 24 palabras y un código QR. Imprímela o guarda el PDF y ponla en un lugar seguro. Es la única forma de leer la copia, siempre.</li>
+<li><strong>Elige las carpetas a proteger.</strong> Documentos y Escritorio suelen ser las dos primeras. Fototecas, carpetas de proyectos y cualquier cosa que echarías de menos.</li>
+<li><strong>Elige dónde va.</strong> Cualquier carpeta que otra app ya sincronice: tu carpeta de iCloud Drive, Google Drive, OneDrive o Dropbox, o un disco externo o NAS. Luego pulsa Copiar ahora.</li>
+</ol>
+<div class="card">Dos destinos son más seguros que uno. Las cuentas se bloquean, los discos fallan. Añadir un segundo no cuesta nada.</div>
+
+<h2 id="card">La tarjeta de recuperación</h2>
+<p>Stash for Mac genera una clave aleatoria. No hay contraseña que recordar, y la app nunca guarda una copia de la tarjeta. La clave vive en el llavero de este Mac para el uso diario, y en la tarjeta para todo lo demás.</p>
+<ul>
+<li><strong>24 palabras</strong> de una lista estándar, con suma de comprobación: una palabra mal escrita se detecta antes de empezar a restaurar.</li>
+<li><strong>Un código QR</strong> con la misma clave. Escanéalo con la cámara del teléfono o con Stash for Mac en un Mac nuevo.</li>
+<li><strong>Una huella</strong> de ocho caracteres, para distinguir dos tarjetas.</li>
+</ul>
+<div class="card warn">Si pierdes la tarjeta y este Mac desaparece, nadie podrá leer la copia, tú incluido. Ese es el sentido de que sea segura. Guarda la tarjeta como un pasaporte.</div>
+
+<h2 id="where">Dónde guardarla</h2>
+<table>
+<tr><th>Destino</th><th>Cómo</th></tr>
+<tr><td>iCloud Drive</td><td>Elige la carpeta de iCloud Drive (o cualquier carpeta dentro). Los archivos se sincronizan solos.</td></tr>
+<tr><td>Google Drive, OneDrive, Dropbox</td><td>Instala una vez la app del proveedor para Mac y elige su carpeta (normalmente en Biblioteca › CloudStorage o en tu carpeta de inicio).</td></tr>
+<tr><td>Disco externo o NAS</td><td>Elige cualquier carpeta. Cuando está desconectado, las copias programadas lo omiten y se ponen al día después.</td></tr>
+</table>
+<p>Dentro del destino, la copia vive en una carpeta llamada <code>Stash for Mac</code>, con una subcarpeta por clave. Todo lo que hay dentro está cifrado. Un README en esa carpeta explica a quien la encuentre qué es y cómo restaurarla.</p>
+
+<h2 id="restore">Restaurar</h2>
+<p><strong>En este Mac:</strong> elige una instantánea en la ventana, pulsa Restaurar… y elige dónde deben ir los archivos. Llegan en una carpeta con el nombre de la original, con sus fechas. No se sobrescribe nada tuyo salvo que elijas esa carpeta.</p>
+<p><strong>En un Mac nuevo:</strong> instala Stash for Mac, pulsa Tengo una tarjeta de recuperación…, escribe las 24 palabras (o usa <code>stashmac key restore --qr tarjeta.png</code> con una foto de la tarjeta), añade la carpeta de destino y aparecerán las instantáneas.</p>
+<p>Si una pieza de la copia está dañada, ese archivo se indica por su nombre y no se escribe; todos los demás se restauran con normalidad.</p>
+
+<h2 id="verify">Comprobar que funciona</h2>
+<p>Verificar abre cada pieza de la última instantánea y restaura un archivo al azar en un lugar temporal para probar todo el camino. Ajustes › «Comprobar la copia una vez por semana» lo hace solo. Una copia nunca verificada es una suposición.</p>
+
+<h2 id="cli">Terminal</h2>
+<pre>stashmac key new | show | card tarjeta.pdf | restore "&lt;24 palabras&gt;" | restore --qr tarjeta.png | forget
+stashmac add ~/Documents           stashmac dest "~/Library/CloudStorage/GoogleDrive-tu@gmail.com/My Drive"
+stashmac backup                    stashmac snapshots
+stashmac restore latest ~/Desktop/Restaurado [--only fotos/2024]
+stashmac verify                    stashmac status</pre>
+<p>Todos los comandos aceptan <code>--json</code>. Códigos de salida: 0 bien, 1 algo que revisar, 2 problema.</p>
+
+<h2 id="privacy">Privacidad</h2>
+<p>El proveedor solo recibe piezas cifradas con nombres sin significado y una lista cifrada de a qué pertenecen. Puede ver cuándo haces copia y más o menos cuánto, nada más. La app no tiene cuenta, ni telemetría, ni hace conexiones propias; el único tráfico es el de la app del proveedor sincronizando su carpeta. La comprobación opcional de actualizaciones es una petición a GitHub sin identificadores.</p>
+<p>No protege de: un Mac con malware mientras la app está abierta, una tarjeta perdida, o alguien con tu cuenta que borre los archivos cifrados. El modelo de amenazas completo está en el repositorio.</p>
+
+<h2 id="trouble">Solución de problemas</h2>
+<h3>«Ningún destino está accesible»</h3><p>El disco está desconectado o la carpeta de la nube se ha movido. Vuelve a conectarlo o añade otro destino.</p>
+<h3>Algunos archivos aparecen como «listados, no descargados»</h3><p>Solo existen en la nube (un marcador de iCloud, por ejemplo). Stash for Mac no hará que tu proveedor los descargue a tus espaldas. Ábrelos una vez, o desactiva «Optimizar almacenamiento del Mac» para esa carpeta, y la siguiente copia los incluirá.</p>
+<h3>Restaurar dice que un archivo falló</h3><p>Una pieza se dañó o cambió tras subirse. Prueba con el otro destino; el mismo archivo allí suele estar bien.</p>
+<h3>Perdí la tarjeta pero este Mac aún funciona</h3><p>Abre la ventana, pulsa la clave de la esquina e imprime una tarjeta nueva ahora.</p>
+<p class="muted" style="margin-top:40px">Licencia MIT. Código e incidencias: <a href="https://github.com/keithadler/stashmac">github.com/keithadler/stashmac</a></p>
+</main></body></html>
