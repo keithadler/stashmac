@@ -8,30 +8,41 @@ func draw(_ s: CGFloat) -> NSImage {
     let tile = NSBezierPath(roundedRect: NSRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset), xRadius: s * 0.22, yRadius: s * 0.22)
     NSGradient(colors: [NSColor(calibratedRed: 0.24, green: 0.66, blue: 0.48, alpha: 1),
                         NSColor(calibratedRed: 0.08, green: 0.40, blue: 0.30, alpha: 1)])!.draw(in: tile, angle: -70)
-    // board
-    let board = NSRect(x: s * 0.27, y: s * 0.18, width: s * 0.46, height: s * 0.58)
+    // safe door
+    let door = NSRect(x: s * 0.20, y: s * 0.20, width: s * 0.60, height: s * 0.60)
     NSColor.white.withAlphaComponent(0.96).setFill()
-    NSBezierPath(roundedRect: board, xRadius: s * 0.06, yRadius: s * 0.06).fill()
-    // clip
-    let clip = NSRect(x: s * 0.40, y: s * 0.70, width: s * 0.20, height: s * 0.10)
-    NSColor(calibratedRed: 0.10, green: 0.24, blue: 0.62, alpha: 1).setFill()
-    NSBezierPath(roundedRect: clip, xRadius: s * 0.03, yRadius: s * 0.03).fill()
-    // lines
-    NSColor(calibratedRed: 0.20, green: 0.42, blue: 0.90, alpha: 1).setFill()
-    for (i, w) in [0.30, 0.24, 0.18].enumerated() {
-        let y = s * (0.58 - CGFloat(i) * 0.11)
-        NSBezierPath(roundedRect: NSRect(x: s * 0.35, y: y, width: s * w, height: s * 0.045), xRadius: s * 0.02, yRadius: s * 0.02).fill()
+    NSBezierPath(roundedRect: door, xRadius: s * 0.08, yRadius: s * 0.08).fill()
+    NSColor(calibratedRed: 0.85, green: 0.90, blue: 0.88, alpha: 1).setFill()
+    NSBezierPath(roundedRect: door.insetBy(dx: s * 0.05, dy: s * 0.05), xRadius: s * 0.05, yRadius: s * 0.05).fill()
+    // dial
+    let c = NSPoint(x: s * 0.50, y: s * 0.50), r = s * 0.14
+    NSColor(calibratedRed: 0.08, green: 0.40, blue: 0.30, alpha: 1).setFill()
+    NSBezierPath(ovalIn: NSRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)).fill()
+    NSColor.white.setFill()
+    NSBezierPath(ovalIn: NSRect(x: c.x - r * 0.62, y: c.y - r * 0.62, width: r * 1.24, height: r * 1.24)).fill()
+    NSColor(calibratedRed: 0.08, green: 0.40, blue: 0.30, alpha: 1).setStroke()
+    for i in 0..<12 {
+        let a = CGFloat(i) * .pi / 6
+        let tick = NSBezierPath()
+        tick.move(to: NSPoint(x: c.x + cos(a) * r * 0.70, y: c.y + sin(a) * r * 0.70))
+        tick.line(to: NSPoint(x: c.x + cos(a) * r * 0.92, y: c.y + sin(a) * r * 0.92))
+        tick.lineWidth = s * 0.012; tick.stroke()
     }
-    // shield
-    let sh = NSBezierPath()
-    let cx = s * 0.72, cy = s * 0.26, r = s * 0.11
-    sh.move(to: NSPoint(x: cx, y: cy + r))
-    sh.line(to: NSPoint(x: cx + r * 0.9, y: cy + r * 0.6))
-    sh.curve(to: NSPoint(x: cx, y: cy - r), controlPoint1: NSPoint(x: cx + r * 0.9, y: cy - r * 0.2), controlPoint2: NSPoint(x: cx + r * 0.5, y: cy - r * 0.8))
-    sh.curve(to: NSPoint(x: cx - r * 0.9, y: cy + r * 0.6), controlPoint1: NSPoint(x: cx - r * 0.5, y: cy - r * 0.8), controlPoint2: NSPoint(x: cx - r * 0.9, y: cy - r * 0.2))
-    sh.close()
-    NSColor(calibratedRed: 0.98, green: 0.80, blue: 0.25, alpha: 1).setFill(); sh.fill()
-    NSColor.white.setStroke(); sh.lineWidth = s * 0.015; sh.stroke()
+    let pointer = NSBezierPath()
+    pointer.move(to: c); pointer.line(to: NSPoint(x: c.x + r * 0.55, y: c.y + r * 0.35)); pointer.lineWidth = s * 0.02; pointer.lineCapStyle = .round; pointer.stroke()
+    // handle
+    NSColor(calibratedRed: 0.08, green: 0.40, blue: 0.30, alpha: 1).setFill()
+    NSBezierPath(roundedRect: NSRect(x: s * 0.70, y: s * 0.42, width: s * 0.05, height: s * 0.16), xRadius: s * 0.02, yRadius: s * 0.02).fill()
+    // key, bottom-left
+    let gold = NSColor(calibratedRed: 0.98, green: 0.80, blue: 0.25, alpha: 1)
+    gold.setFill()
+    NSBezierPath(ovalIn: NSRect(x: s * 0.13, y: s * 0.13, width: s * 0.12, height: s * 0.12)).fill()
+    NSColor(calibratedRed: 0.08, green: 0.40, blue: 0.30, alpha: 1).setFill()
+    NSBezierPath(ovalIn: NSRect(x: s * 0.165, y: s * 0.165, width: s * 0.05, height: s * 0.05)).fill()
+    gold.setFill()
+    NSBezierPath(roundedRect: NSRect(x: s * 0.23, y: s * 0.175, width: s * 0.16, height: s * 0.035), xRadius: s * 0.01, yRadius: s * 0.01).fill()
+    NSBezierPath(rect: NSRect(x: s * 0.33, y: s * 0.15, width: s * 0.025, height: s * 0.04)).fill()
+    NSBezierPath(rect: NSRect(x: s * 0.365, y: s * 0.15, width: s * 0.025, height: s * 0.05)).fill()
     img.unlockFocus()
     return img
 }
