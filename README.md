@@ -10,7 +10,7 @@ Free, MIT licensed, no account, no server, no subscription. Same family as
 
 ## Download
 
-**[Download Stash for Mac 1.0.0 (DMG, 2 MB)](https://github.com/keithadler/stashmac/releases/download/v1.0.0/Stash-for-Mac-1.0.0.dmg)** · macOS 14 or later, Apple silicon and Intel
+**[Download Stash for Mac 1.0.0 (DMG, 2 MB)](https://github.com/keithadler/stashmac/releases/download/v1.0.1/Stash-for-Mac-1.0.1.dmg)** · macOS 14 or later, Apple silicon and Intel
 
 1. Open the downloaded file and drag **Stash for Mac** into **Applications**.
 2. Open it from Applications. macOS will say it can't check the app for malicious software: click **Done**, then **System Settings › Privacy & Security › Open Anyway**. That happens once, because this is a free app without Apple's $99-a-year certificate.
@@ -131,3 +131,11 @@ swift test                         # same suites under XCTest where Xcode exists
 
 MIT. See LICENSE. Mac and macOS are trademarks of Apple Inc.; Google Drive, OneDrive, iCloud and
 Dropbox belong to their owners and are named only to identify those services.
+
+## More from the same maker
+
+Three more small apps built the same way: each does one thing, says exactly what it touches, and never phones home. Free, MIT licensed, no accounts. All four at [keithadler.github.io](https://keithadler.github.io).
+
+- [Permissions for Mac](https://github.com/keithadler/permsmac): every permission on your Mac on one screen, in plain English, with what changed since last week.
+- [Clip for Mac](https://github.com/keithadler/clipmac): a clipboard that remembers, with a stack you paste through one item at a time, and that refuses to record passwords.
+- [Tidy for Mac](https://github.com/keithadler/tidymac): cleanup and speed for the whole family; nothing is deleted, only moved to the Trash with an undoable receipt.

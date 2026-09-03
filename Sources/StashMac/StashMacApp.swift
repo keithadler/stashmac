@@ -23,6 +23,8 @@ struct StashMacApp: App {
                 CommandGroup(replacing: .help) {
                     Button("Stash for Mac Help") { Help.open() }.keyboardShortcut("?")
                     Button("Report a Problem…") { NSWorkspace.shared.open(URL(string: "https://github.com/keithadler/stashmac/issues")!) }
+                    Divider()
+                    Button("More from the Same Maker…") { NSWorkspace.shared.open(URL(string: "https://keithadler.github.io")!) }
                 }
             }
         Settings { SettingsView() }

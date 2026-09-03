@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — 2026-09-03
+
+"More from the Same Maker" in the Help menu, pointing at the family page. Help and README gained the same section.
+
 ## 1.0.0 — 2026-09-03
 
 First release.
