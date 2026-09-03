@@ -75,7 +75,7 @@ enum Restore {
                 let h = try FileHandle(forWritingTo: tmp)
                 defer { try? h.close() }
                 for name in f.chunks {
-                    try h.write(contentsOf: try Chunk.open(try store.getChunk(name), key: key))
+                    try autoreleasepool { try h.write(contentsOf: try Chunk.open(try store.getChunk(name), key: key)) }
                 }
                 try h.close()
                 if FileManager.default.fileExists(atPath: out.path) { try FileManager.default.removeItem(at: out) }
@@ -103,9 +103,11 @@ enum Restore {
         var report = VerifyReport()
         let names = Array(Set(m.files.flatMap(\.chunks))).sorted()
         for (n, name) in names.enumerated() {
-            guard store.hasChunk(name), let blob = try? store.getChunk(name) else { report.chunksMissing.append(name); continue }
-            if (try? Chunk.open(blob, key: key)) == nil { report.chunksBad.append(name) }
-            report.chunksChecked += 1
+            autoreleasepool {
+                guard store.hasChunk(name), let blob = try? store.getChunk(name) else { report.chunksMissing.append(name); return }
+                if (try? Chunk.open(blob, key: key)) == nil { report.chunksBad.append(name) }
+                report.chunksChecked += 1
+            }
             progress?(n + 1, names.count)
         }
         if let pick = m.files.randomElement() {

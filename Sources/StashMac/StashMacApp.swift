@@ -162,13 +162,13 @@ final class StashModel: ObservableObject {
         }
     }
 
-    func restore(_ snap: SnapshotInfo, to target: URL) {
+    func restore(_ snap: SnapshotInfo, to target: URL, only: [String] = []) {
         guard let key, let d = destinations.first, busy == nil else { return }
         busy = String(localized: "Restoring…"); progress = 0
         Task.detached { [key] in
             let msg: String
             do {
-                let r = try Restore.run(snapshot: snap.fileName, destination: d, key: key, to: target) { done, total in Task { @MainActor in self.progress = Double(done) / Double(max(total, 1)) } }
+                let r = try Restore.run(snapshot: snap.fileName, store: FolderStore(destination: d, key: key), key: key, to: target, only: only) { done, total in Task { @MainActor in self.progress = Double(done) / Double(max(total, 1)) } }
                 msg = String(format: String(localized: "Restored %lld files into %@."), r.restored, target.lastPathComponent) + (r.failed.isEmpty ? "" : "\n" + r.failed.joined(separator: "\n"))
             } catch { msg = error.localizedDescription }
             await MainActor.run { self.lastMessage = msg; self.busy = nil }

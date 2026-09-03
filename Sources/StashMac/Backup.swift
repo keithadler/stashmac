@@ -86,22 +86,31 @@ enum Backup {
             defer { try? h.close() }
             var names: [String] = []
             var readAny = false
+            var failure: Error?
             while true {
-                let piece = (try? h.read(upToCount: Chunk.size)) ?? Data()
-                if piece.isEmpty && readAny { break }
-                readAny = true
-                let name = Chunk.name(for: piece, key: key)
-                if store.hasChunk(name) {
-                    report.reusedChunks += 1
-                } else {
-                    let blob = try Chunk.seal(piece, key: key)
-                    try store.putChunk(name, blob)
-                    report.newChunks += 1; report.newBytes += Int64(blob.count)
+                // Each 4 MB piece and its sealed copy die at the end of this iteration, not at the
+                // end of the backup: without the pool a 1 GB backup peaked at 1 GB resident.
+                let finished: Bool = autoreleasepool {
+                    let piece = (try? h.read(upToCount: Chunk.size)) ?? Data()
+                    if piece.isEmpty && readAny { return true }
+                    readAny = true
+                    let name = Chunk.name(for: piece, key: key)
+                    if store.hasChunk(name) {
+                        report.reusedChunks += 1
+                    } else {
+                        do {
+                            let blob = try Chunk.seal(piece, key: key)
+                            try store.putChunk(name, blob)
+                            report.newChunks += 1; report.newBytes += Int64(blob.count)
+                        } catch { failure = error; return true }
+                    }
+                    names.append(name)
+                    done += Int64(piece.count)
+                    return piece.isEmpty || piece.count < Chunk.size
                 }
-                names.append(name)
-                done += Int64(piece.count)
-                if piece.isEmpty || piece.count < Chunk.size { break }
+                if finished { break }
             }
+            if let failure { throw failure }
             manifest.files.append(Manifest.File(source: f.source, path: f.rel, size: f.size, modified: f.modified, chunks: names))
             report.files += 1; report.bytes += f.size
             progress?(n + 1, walked.count, done)
