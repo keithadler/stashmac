@@ -5,10 +5,12 @@
 //  The init hook hands `stashmac <command>` invocations to CLI.swift, which exits before any UI.
 
 import SwiftUI
+import ServiceManagement
 
 @main
 struct StashMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage("menuBar") private var menuBar = true
     init() { CLI.runIfRequested() }
 
     var body: some Scene {
@@ -23,11 +25,38 @@ struct StashMacApp: App {
                 }
             }
         Settings { SettingsView() }
+
+        MenuBarExtra(isInserted: $menuBar) { MenuBarContent() } label: { MenuBarLabel() }
+    }
+}
+
+struct MenuBarLabel: View {
+    @ObservedObject private var model = StashModel.shared
+    var body: some View {
+        Image(systemName: model.busy != nil ? "arrow.triangle.2.circlepath" : (model.lastBackup == nil ? "externaldrive.badge.questionmark" : "externaldrive.badge.checkmark"))
+    }
+}
+
+struct MenuBarContent: View {
+    @ObservedObject private var model = StashModel.shared
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        if let busy = model.busy { Text("\(busy) \(Int(model.progress * 100))%") }
+        else if let last = model.lastBackup { Text(String(format: String(localized: "Last backup %@"), last.formatted(date: .abbreviated, time: .shortened))) }
+        else { Text("No backup yet") }
+        if let next = Scheduler.shared.nextRun { Text(String(format: String(localized: "Next %@"), next.formatted(date: .omitted, time: .shortened))) }
+        Divider()
+        Button("Back Up Now") { model.backUp() }.disabled(model.busy != nil || model.sources.isEmpty || model.availableDestinations.isEmpty)
+        Button("Verify Now") { model.verify() }.disabled(model.busy != nil || model.availableDestinations.isEmpty)
+        Divider()
+        Button("Open Stash for Mac") { NSApp.activate(); openWindow(id: "main") }
+        Button("Quit") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
 }
 
 @MainActor
 final class StashModel: ObservableObject {
+    static let shared = StashModel()
     @Published var key: MasterKey? = KeyStore.load()
     @Published var sources: [URL] = Config.sources
     @Published var destinations: [URL] = Config.destinations
@@ -50,9 +79,13 @@ final class StashModel: ObservableObject {
     func addDestination(_ u: URL) { if !destinations.contains(u) { destinations.append(u); Config.destinations = destinations }; refreshSnapshots() }
     func removeDestination(_ u: URL) { destinations.removeAll { $0 == u }; Config.destinations = destinations; refreshSnapshots() }
 
-    func backUp() {
+    /// Destinations that are reachable right now (a NAS or a disk may be unplugged).
+    var availableDestinations: [URL] { destinations.filter { Config.isFolder($0) } }
+
+    func backUp(reason: String = "manual") {
         guard let key, busy == nil else { return }
-        let sources = self.sources, dests = self.destinations
+        let sources = self.sources, dests = availableDestinations
+        guard !sources.isEmpty, !dests.isEmpty else { lastMessage = String(localized: "No destination is reachable right now."); return }
         busy = String(localized: "Backing up…"); progress = 0
         Task.detached { [key] in
             var lines: [String] = []
@@ -74,7 +107,7 @@ final class StashModel: ObservableObject {
     }
 
     func verify() {
-        guard let key, let d = destinations.first, busy == nil else { return }
+        guard let key, let d = availableDestinations.first, busy == nil else { return }
         busy = String(localized: "Verifying…"); progress = 0
         Task.detached { [key] in
             let msg: String
@@ -103,7 +136,7 @@ final class StashModel: ObservableObject {
 }
 
 struct MainView: View {
-    @StateObject private var model = StashModel()
+    @ObservedObject private var model = StashModel.shared
     @State private var showCard = false
 
     var body: some View {
@@ -261,20 +294,36 @@ struct PDFDocumentBox {
 
 struct SettingsView: View {
     @AppStorage("autoUpdateCheck") private var autoUpdate = false
+    @AppStorage("schedule") private var schedule = Config.Schedule.daily.rawValue
+    @AppStorage("weeklyVerify") private var weeklyVerify = true
+    @AppStorage("menuBar") private var menuBar = true
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     var body: some View {
         Form {
+            Section("When to back up") {
+                Picker("Back up", selection: $schedule) { ForEach(Config.Schedule.allCases) { Text($0.label).tag($0.rawValue) } }
+                Text("Runs quietly in the background when a destination is reachable. Uploads only what changed.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Check the backup once a week by restoring a random file", isOn: $weeklyVerify)
+                Toggle("Show Stash for Mac in the menu bar", isOn: $menuBar)
+                Toggle("Open Stash for Mac when I log in", isOn: $launchAtLogin).onChange(of: launchAtLogin) { _, on in
+                    do { if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } }
+                    catch { launchAtLogin = SMAppService.mainApp.status == .enabled }
+                }
+                Text("Scheduled backups only happen while the app is open, so opening at login is the usual choice.").font(.caption).foregroundStyle(.secondary)
+            }
             Section("Updates") {
                 Toggle("Check for a new version once a day", isOn: $autoUpdate)
                 Text("One request to GitHub, no identifiers. A new version is offered as a download; nothing installs by itself.").font(.caption).foregroundStyle(.secondary)
             }
-            Section { Text("Folders, destinations and schedules arrive in the next milestones.").font(.caption).foregroundStyle(.secondary) }
         }
-        .formStyle(.grouped).frame(width: 480, height: 220)
+        .formStyle(.grouped).frame(width: 520, height: 400)
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Updates.scheduleBackgroundChecks()
+        Scheduler.shared.start()
     }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !Config.menuBar }
 }
