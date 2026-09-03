@@ -8,9 +8,9 @@ and a QR code on a card.
 Free, MIT licensed, no account, no server, no subscription. Same family as
 [Tidy for Mac](https://github.com/keithadler/tidymac) and [Clip for Mac](https://github.com/keithadler/clipmac).
 
-**Status: shell.** This repository currently proves the part that has to be right before anything
-else: the key, its recovery card, and the encrypted chunk format. Folders, destinations, schedules
-and restore are the next milestones (see below).
+**Status: works, not yet released.** Key and recovery card, encrypted chunks and manifests,
+backup into any folder, restore, and verify are built and tested end to end. Schedules, a menu bar
+presence, the Google Drive and OneDrive APIs, help pages and a release are still to come.
 
 ## What it refuses to do
 
@@ -49,27 +49,32 @@ manifest, HKDF-SHA256 for key derivation, HMAC-SHA256 for chunk names, SecRandom
 Chunk format: `STSH1` + 12-byte nonce + ciphertext + 16-byte tag. Test vectors in
 `Sources/StashMac/Tests`.
 
-## Command line (today)
+## How a backup is stored
+
+Inside the destination folder: `Stash for Mac/<key fingerprint>/chunks/<ab>/<64 hex>` for the
+encrypted 4 MB chunks, `manifests/<timestamp>.stsm` for each encrypted snapshot, and a README that
+tells whoever finds the folder what it is and how to restore it. Identical content is stored once
+per stash. A second backup uploads only chunks the destination doesn't already have.
+
+## Command line
 
 ```
-stashmac key new                 make a key, print the 24 words
-stashmac key show                print the words and fingerprint
-stashmac key card card.pdf       write the printable recovery card
-stashmac key restore "<24 words>" | --qr card.png
-stashmac key forget              remove the key from this Mac
-stashmac seal in out             encrypt one file as a chunk; stashmac open reverses it
-stashmac status                  stashmac selftest
+stashmac key new | show | card card.pdf | restore "<24 words>" | restore --qr card.png | forget
+stashmac add ~/Documents            stashmac dest ~/Library/CloudStorage/GoogleDrive-you@gmail.com/My\ Drive
+stashmac backup                     every folder to every destination; --json for scripts
+stashmac snapshots                  stashmac restore latest ~/Desktop/Restored [--only photos/2024]
+stashmac verify                     opens every chunk of the latest snapshot, restores one random file
+stashmac status                     stashmac selftest
 ```
+
+Exit codes: 0 fine, 1 something to look at (placeholders skipped, nothing to back up), 2 problem.
 
 ## Roadmap
 
-1. Folders: pick them, walk them, skip cloud placeholders, track changes by size and date.
-2. Chunk store: split, dedupe by keyed hash, seal, write; manifest of every snapshot, encrypted.
-3. Destinations: any folder first (that covers every provider through its own desktop app),
-   then Google Drive and OneDrive APIs with the app-only scopes that need no review.
-4. Restore: browse snapshots, restore a file, a folder, or everything, to a new place.
-5. Verify: weekly random-file restore, `stashmac verify` over every chunk's tag.
-6. Schedule, menu bar status, second destination nag, help, Spanish, release.
+1. Schedule (hourly, daily) with a menu bar item showing the last backup and the next one.
+2. Weekly automatic verify with a plain-language result.
+3. Google Drive and OneDrive over their APIs with app-only scopes, for Macs without the desktop apps.
+4. Help pages, Spanish, screenshots, release.
 
 ## Building
 
