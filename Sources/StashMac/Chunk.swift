@@ -23,7 +23,7 @@ enum Chunk {
     }
 
     static func open(_ blob: Data, key: MasterKey) throws -> Data {
-        guard blob.count > magic.count + 28, blob.prefix(magic.count) == magic else { throw ChunkError.notAChunk }
+        guard blob.count >= magic.count + 28, blob.prefix(magic.count) == magic else { throw ChunkError.notAChunk }   // an empty chunk is exactly nonce + tag
         do {
             return try ChaChaPoly.open(try ChaChaPoly.SealedBox(combined: blob.dropFirst(magic.count)), using: key.chunkKey)
         } catch { throw ChunkError.corruptOrWrongKey }

@@ -48,8 +48,13 @@ enum KeyStore {
     private static let service = "com.keithadler.stashmac"
     nonisolated(unsafe) static var memoryOnly = false
     nonisolated(unsafe) private static var memory: [String: Data] = [:]
+    /// Integration runs keep the key in a plain file under this directory instead of the Keychain.
+    nonisolated(unsafe) static var fileDirectory: URL?
+
+    private static func file(_ stash: String) -> URL? { fileDirectory?.appendingPathComponent("key-\(stash)") }
 
     static func load(stash: String = "default") -> MasterKey? {
+        if let f = file(stash) { return (try? Data(contentsOf: f)).flatMap { $0.count == 32 ? MasterKey(entropy: $0) : nil } }
         if memoryOnly { return memory[stash].map { MasterKey(entropy: $0) } }
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: stash,
                                 kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
@@ -59,6 +64,7 @@ enum KeyStore {
     }
 
     static func save(_ key: MasterKey, stash: String = "default") {
+        if let f = file(stash) { try? key.entropy.write(to: f); return }
         if memoryOnly { memory[stash] = key.entropy; return }
         let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: stash]
         SecItemDelete(base as CFDictionary)
@@ -70,6 +76,7 @@ enum KeyStore {
     }
 
     static func delete(stash: String = "default") {
+        if let f = file(stash) { try? FileManager.default.removeItem(at: f); return }
         if memoryOnly { memory[stash] = nil; return }
         SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: stash] as CFDictionary)
     }

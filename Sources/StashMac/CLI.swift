@@ -16,14 +16,21 @@ enum CLI {
       stashmac key restore "<24 words>" | --qr <image.png>
                                         install a key from a card
       stashmac key forget               remove the key from this Mac's Keychain
+      stashmac add <folder>             back this folder up (repeatable); stashmac remove <folder>
+      stashmac dest <folder>            a destination: any folder a provider syncs, a disk, a NAS
+      stashmac backup [--json]          back up every folder to every destination now
+      stashmac snapshots [--json]       list snapshots at each destination
+      stashmac restore <snapshot|latest> <target folder> [--only <path>] [--dest <folder>]
+      stashmac verify [--json]          open every chunk of the latest snapshot; restore one random file
       stashmac seal <in> <out>          encrypt one file as a chunk (proof of the format)
       stashmac open <in> <out>          decrypt one chunk
       stashmac status [--json]
       stashmac selftest [--filter S] [--list] [--json]
       stashmac help | version
 
-    Folders, destinations, schedules and restore are the next milestones. Everything above is
-    the part that has to be right first: the key, its recovery, and the chunk format.
+    Destinations are folders on purpose: iCloud Drive, Google Drive, OneDrive and Dropbox all appear
+    as folders through their own apps, so no API keys or accounts are needed. Everything written
+    there is encrypted; the 24-word card is the only way to read it back.
     """
 
     static var version: String {
@@ -38,6 +45,10 @@ enum CLI {
     }
 
     static func runIfRequested() {
+        if let dir = ProcessInfo.processInfo.environment["STASHMAC_TEST"], !dir.isEmpty {   // integration runs: no Keychain, no real defaults
+            KeyStore.fileDirectory = URL(fileURLWithPath: dir, isDirectory: true)
+            Config.defaults = UserDefaults(suiteName: "com.keithadler.stashmac.test")!
+        }
         let args = Array(CommandLine.arguments.dropFirst())
         guard let cmd = args.first, !cmd.hasPrefix("-psn") else { return }
         exit(run(cmd, Array(args.dropFirst())))
@@ -47,7 +58,7 @@ enum CLI {
     static func value(_ n: String, _ a: [String]) -> String? { guard let i = a.firstIndex(of: n), i + 1 < a.count else { return nil }; return a[i + 1] }
     static func positional(_ a: [String]) -> [String] {
         var out: [String] = []; var skip = false
-        for x in a { if skip { skip = false; continue }; if ["--filter", "--qr"].contains(x) { skip = true; continue }; if x.hasPrefix("--") { continue }; out.append(x) }
+        for x in a { if skip { skip = false; continue }; if ["--filter", "--qr", "--only", "--dest"].contains(x) { skip = true; continue }; if x.hasPrefix("--") { continue }; out.append(x) }
         return out
     }
 
@@ -109,11 +120,117 @@ enum CLI {
                 return 0
             } catch { fputs("\(error.localizedDescription)\n", stderr); return 2 }
 
+        case "add", "remove":
+            guard let f = pos.first else { fputs("\(cmd) <folder>\n", stderr); return 64 }
+            let url = URL(fileURLWithPath: f).standardizedFileURL
+            if cmd == "add" {
+                guard Config.isFolder(url) else { fputs("not a folder: \(url.path)\n", stderr); return 2 }
+                if !Config.sources.contains(url) { Config.sources += [url] }
+                print("backing up \(url.path)")
+            } else {
+                Config.sources.removeAll { $0 == url }; print("no longer backing up \(url.path)")
+            }
+            return 0
+
+        case "dest":
+            guard let f = pos.first else { fputs("dest <folder>\n", stderr); return 64 }
+            let url = URL(fileURLWithPath: f).standardizedFileURL
+            guard Config.isFolder(url) else { fputs("not a folder: \(url.path)\n", stderr); return 2 }
+            if !Config.destinations.contains(url) { Config.destinations += [url] }
+            print("backups go to \(url.path)")
+            return 0
+
+        case "backup":
+            guard let k = KeyStore.load() else { fputs("no key on this Mac (stashmac key new)\n", stderr); return 2 }
+            guard !Config.sources.isEmpty else { fputs("nothing to back up (stashmac add <folder>)\n", stderr); return 2 }
+            guard !Config.destinations.isEmpty else { fputs("nowhere to put it (stashmac dest <folder>)\n", stderr); return 2 }
+            var results: [[String: Any]] = []
+            var worst: Int32 = 0
+            for d in Config.destinations {
+                do {
+                    let r = try Backup.run(sources: Config.sources, destination: d, key: k) { done, total, _ in
+                        if !js && done % 50 == 0 { fputs("\r\(done)/\(total) files", stderr) }
+                    }
+                    if !js { fputs("\r", stderr) }
+                    results.append(["destination": d.path, "files": r.files, "bytes": r.bytes, "new_chunks": r.newChunks, "new_bytes": r.newBytes,
+                                    "reused_chunks": r.reusedChunks, "skipped_placeholders": r.skippedPlaceholders, "unreadable": r.unreadable, "manifest": r.manifest])
+                    if !js {
+                        print("\(d.path): \(r.files) files, \(ByteCountFormatter.string(fromByteCount: r.bytes, countStyle: .file)); uploaded \(r.newChunks) chunks (\(ByteCountFormatter.string(fromByteCount: r.newBytes, countStyle: .file))), reused \(r.reusedChunks)"
+                              + (r.skippedPlaceholders > 0 ? "; \(r.skippedPlaceholders) cloud placeholders listed, not downloaded" : "")
+                              + (r.unreadable.isEmpty ? "" : "; \(r.unreadable.count) unreadable"))
+                    }
+                    if r.skippedPlaceholders > 0 || !r.unreadable.isEmpty { worst = max(worst, 1) }
+                } catch {
+                    results.append(["destination": d.path, "error": error.localizedDescription])
+                    if !js { fputs("\(d.path): \(error.localizedDescription)\n", stderr) }
+                    worst = 2
+                }
+            }
+            Config.lastBackup = Date()
+            if js { print(json(["results": results])) }
+            return worst
+
+        case "snapshots":
+            guard let k = KeyStore.load() else { fputs("no key on this Mac\n", stderr); return 2 }
+            var all: [[String: Any]] = []
+            for d in Config.destinations {
+                let snaps = Restore.snapshots(destination: d, key: k)
+                if !js { print(d.path + (snaps.isEmpty ? ": no snapshots" : "")) }
+                for s in snaps {
+                    all.append(["destination": d.path, "snapshot": s.fileName, "created_at": ISO8601DateFormatter().string(from: s.createdAt), "host": s.host, "files": s.files, "bytes": s.bytes, "placeholders": s.placeholders])
+                    if !js { print("  \(s.fileName)  \(s.createdAt.formatted(date: .abbreviated, time: .shortened))  \(s.files) files, \(ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file)), from \(s.host)") }
+                }
+            }
+            if js { print(json(["snapshots": all])) }
+            return all.isEmpty ? 1 : 0
+
+        case "restore":
+            guard let k = KeyStore.load() else { fputs("no key on this Mac\n", stderr); return 2 }
+            guard pos.count >= 2 else { fputs("restore <snapshot|latest> <target folder> [--only <path>] [--dest <folder>]\n", stderr); return 64 }
+            let dest = value("--dest", args).map { URL(fileURLWithPath: $0) } ?? Config.destinations.first
+            guard let dest else { fputs("no destination (stashmac dest <folder> or --dest)\n", stderr); return 2 }
+            let snaps = Restore.snapshots(destination: dest, key: k)
+            guard let snap = pos[0] == "latest" ? snaps.first?.fileName : snaps.first(where: { $0.fileName == pos[0] })?.fileName else { fputs("no such snapshot at \(dest.path)\n", stderr); return 2 }
+            let target = URL(fileURLWithPath: pos[1])
+            do {
+                let r = try Restore.run(snapshot: snap, destination: dest, key: k, to: target, only: value("--only", args))
+                print(js ? json(["restored": r.restored, "bytes": r.bytes, "failed": r.failed]) : "restored \(r.restored) files (\(ByteCountFormatter.string(fromByteCount: r.bytes, countStyle: .file))) into \(target.path)" + (r.failed.isEmpty ? "" : "\nFAILED:\n  " + r.failed.joined(separator: "\n  ")))
+                return r.failed.isEmpty ? 0 : 2
+            } catch { fputs("\(error.localizedDescription)\n", stderr); return 2 }
+
+        case "verify":
+            guard let k = KeyStore.load() else { fputs("no key on this Mac\n", stderr); return 2 }
+            var worst: Int32 = 0
+            var out: [[String: Any]] = []
+            for d in Config.destinations {
+                do {
+                    let v = try Restore.verify(destination: d, key: k)
+                    out.append(["destination": d.path, "chunks_checked": v.chunksChecked, "bad": v.chunksBad, "missing": v.chunksMissing, "sample_file": v.sampleFile as Any, "sample_ok": v.sampleOK as Any])
+                    let ok = v.chunksBad.isEmpty && v.chunksMissing.isEmpty && v.sampleOK != false
+                    if !js { print("\(d.path): \(v.chunksChecked) chunks checked, \(v.chunksBad.count) bad, \(v.chunksMissing.count) missing" + (v.sampleFile.map { "; restored \($0) \(v.sampleOK == true ? "OK" : "FAILED")" } ?? "; no snapshot yet")) }
+                    if !ok { worst = 2 } else if v.chunksChecked == 0 { worst = max(worst, 1) }
+                } catch { if !js { fputs("\(d.path): \(error.localizedDescription)\n", stderr) }; worst = 2 }
+            }
+            Config.lastVerify = Date()
+            if js { print(json(["results": out])) }
+            return worst
+
         case "status":
             let k = KeyStore.load()
-            if js { print(json(["version": version, "key": k?.fingerprint as Any, "folders": [], "destinations": []])) }
-            else { print("Stash for Mac \(version)\nkey:           \(k.map { $0.fingerprint } ?? "none (stashmac key new)")\nfolders:       none yet\ndestinations:  none yet") }
-            return k == nil ? 1 : 0
+            let iso = ISO8601DateFormatter()
+            if js { print(json(["version": version, "key": k?.fingerprint as Any, "folders": Config.sources.map(\.path), "destinations": Config.destinations.map(\.path),
+                                "last_backup": Config.lastBackup.map { iso.string(from: $0) } as Any, "last_verify": Config.lastVerify.map { iso.string(from: $0) } as Any])) }
+            else {
+                print("""
+                Stash for Mac \(version)
+                key:           \(k.map { $0.fingerprint } ?? "none (stashmac key new)")
+                folders:       \(Config.sources.isEmpty ? "none (stashmac add <folder>)" : Config.sources.map(\.path).joined(separator: ", "))
+                destinations:  \(Config.destinations.isEmpty ? "none (stashmac dest <folder>)" : Config.destinations.map(\.path).joined(separator: ", "))
+                last backup:   \(Config.lastBackup.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
+                last verify:   \(Config.lastVerify.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
+                """)
+            }
+            return k == nil || Config.sources.isEmpty || Config.destinations.isEmpty ? 1 : 0
 
         case "selftest":
             if flag("--list", args) { TestKit.list(); return 0 }
