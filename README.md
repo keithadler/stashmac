@@ -8,6 +8,16 @@ and a QR code on a card.
 Free, MIT licensed, no account, no server, no subscription. Same family as
 [Tidy for Mac](https://github.com/keithadler/tidymac) and [Clip for Mac](https://github.com/keithadler/clipmac).
 
+## Download
+
+**[Download Stash for Mac 1.0.0 (DMG, 2 MB)](https://github.com/keithadler/stashmac/releases/download/v1.0.0/Stash-for-Mac-1.0.0.dmg)** · macOS 14 or later, Apple silicon and Intel
+
+1. Open the downloaded file and drag **Stash for Mac** into **Applications**.
+2. Open it from Applications. macOS will say it can't check the app for malicious software: click **Done**, then **System Settings › Privacy & Security › Open Anyway**. That happens once, because this is a free app without Apple's $99-a-year certificate.
+3. Click **Make a Key**, keep the card it shows you, add a folder and a destination, click **Back Up Now**.
+
+Or build it yourself in a minute, no Xcode needed: `git clone https://github.com/keithadler/stashmac && cd stashmac && ./build-app.sh --install --run`
+
 <p align="center"><img src="docs/screenshots/main.png" width="760" alt="Stash for Mac: folders to protect, where it goes, snapshots"></p>
 <p align="center"><img src="docs/screenshots/card.png" width="560" alt="The recovery card: 24 words and a QR code"></p>
 
