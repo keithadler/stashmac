@@ -2,9 +2,10 @@ Show HN: Stash for Mac – encrypted backup into the free storage you already ha
 https://github.com/keithadler/stashmac
 
 Most people have 15 GB of Google Drive, 5 GB of OneDrive or iCloud, and no backup of the
-folder that matters. Stash for Mac backs up the folders you choose into any of those (they all
-mount as folders through their own apps, so no API keys, no accounts), encrypted on the Mac
-first with ChaChaPoly. The provider only ever sees blobs with keyed-hash names.
+folder that matters. Stash for Mac backs up the folders you choose into any of those, and into
+several at once (they all mount as folders through their own apps, so no API keys, no
+accounts), on an hourly or daily schedule, encrypted on the Mac first with ChaChaPoly. The
+provider only ever sees blobs with keyed-hash names.
 
 No password: the app makes a random key and shows it once as 24 words plus a QR code on a
 printable card. Checksum catches typos; a photo of the card restores on a new Mac. The app
@@ -20,8 +21,8 @@ Swift, CryptoKit, no dependencies, no Xcode project. MIT. macOS 14+.
 
 Stash for Mac: encrypted backup into the free storage you already have.
 
-Google Drive, OneDrive, iCloud, Dropbox, any disk. Scrambled on your Mac first. Your key is
-24 words and a QR code on a card. Checks itself weekly. Free and MIT.
+Google Drive, OneDrive, iCloud, Dropbox, any disk, several at once, on a schedule. Scrambled
+on your Mac first. Your key is 24 words and a QR code on a card. Checks itself weekly. Free, MIT.
 
 github.com/keithadler/stashmac
 

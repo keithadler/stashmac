@@ -21,6 +21,20 @@ Or build it yourself in a minute, no Xcode needed: `git clone https://github.com
 <p align="center"><img src="docs/screenshots/main.png" width="760" alt="Stash for Mac: folders to protect, where it goes, snapshots"></p>
 <p align="center"><img src="docs/screenshots/card.png" width="560" alt="The recovery card: 24 words and a QR code"></p>
 
+## What it does
+
+- **Backs up the folders you choose to several places at once**: your iCloud Drive folder and
+  your Google Drive folder and an external disk, each a complete copy. An account can be lost, a
+  disk can fail; two destinations survive either, and the app nags until you have two.
+- **On a schedule**: every hour or once a day while the app is open, only to destinations that are
+  reachable right now, uploading only what changed. Opens at login by default so the schedule runs.
+- **Checks itself**: once a week it restores a random file to prove the whole path works, and
+  tells you in plain words. A backup that has never been verified is a guess.
+- **Encrypted before it leaves the Mac**, with a key that lives on a card you keep, never with the
+  provider and never with anyone else.
+- **Restores a file, a folder, or everything** from any snapshot to a place you choose, and shows
+  what every snapshot is costing you so old ones can be thinned out.
+
 **Version 1.0.0.** Key and recovery card, encrypted
 chunks and manifests, backup into any folder, a restore browser, verify, snapshot management with
 two retention policies, exclusions, schedules, a menu bar presence, notifications, help in two
