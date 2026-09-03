@@ -13,7 +13,8 @@ struct StashMacApp: App {
 
     var body: some Scene {
         WindowGroup("Stash for Mac", id: "main") { MainView() }
-            .defaultSize(width: 860, height: 560)
+            .defaultSize(width: 860, height: 520)
+            .windowResizability(.contentMinSize)
             .commands {
                 CommandGroup(replacing: .newItem) { }
                 CommandGroup(after: .appInfo) { Button("Check for Updates…") { Updates.checkAndPresent() } }
@@ -126,6 +127,7 @@ struct MainView: View {
             if !model.lastMessage.isEmpty { Text(model.lastMessage).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
         }
         .padding(24)
+        .frame(minWidth: 760, idealWidth: 860, minHeight: 420, idealHeight: 520)
         .sheet(isPresented: $showCard) { if let key = model.key { RecoveryCardView(key: key) } }
         .onAppear { model.refreshSnapshots() }
     }
