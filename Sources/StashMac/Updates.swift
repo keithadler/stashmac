@@ -16,7 +16,7 @@ enum Updates {
 
     enum Result: Equatable { case upToDate(String), available(String, URL), unknown(String) }
 
-    static var enabled: Bool { defaults.bool(forKey: "autoUpdateCheck") }
+    static var enabled: Bool { defaults.object(forKey: "autoUpdateCheck") as? Bool ?? true }
     static var lastCheck: Date? {
         get { let t = defaults.double(forKey: "lastUpdateCheck"); return t > 0 ? Date(timeIntervalSince1970: t) : nil }
         set { defaults.set(newValue?.timeIntervalSince1970 ?? 0, forKey: "lastUpdateCheck") }

@@ -29,7 +29,7 @@ moves data, so the code has something to be measured against.
   partial is written where a good file should go.
 - The key is generated with `SecRandomCopyBytes`, never derived from a password, never written
   anywhere but the Keychain (this device only) and the card the user explicitly renders.
-- The app never phones home. The only network traffic is to the destination the user configured.
+- The app never phones home with anything about the user. The only network traffic is the destination the user configured and a daily request to GitHub's releases API carrying no identifiers (a toggle).
 - Reading a source folder never causes a cloud download: dataless files are skipped and listed.
 
 ## Explicitly not provided

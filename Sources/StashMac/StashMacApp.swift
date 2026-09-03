@@ -317,7 +317,7 @@ struct PDFDocumentBox {
 }
 
 struct SettingsView: View {
-    @AppStorage("autoUpdateCheck") private var autoUpdate = false
+    @AppStorage("autoUpdateCheck") private var autoUpdate = true
     @AppStorage("schedule") private var schedule = Config.Schedule.daily.rawValue
     @AppStorage("weeklyVerify") private var weeklyVerify = true
     @AppStorage("keepSnapshots") private var keepSnapshots = 30
@@ -349,6 +349,12 @@ struct SettingsView: View {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Scheduled backups only run while the app is open: register as a login item once, the
+        // first time this version runs (not in test or screenshot runs). Settings turns it off.
+        if ProcessInfo.processInfo.environment["STASHMAC_TEST"] == nil, !UserDefaults.standard.bool(forKey: "loginItemOffered") {
+            UserDefaults.standard.set(true, forKey: "loginItemOffered")
+            try? SMAppService.mainApp.register()
+        }
         Updates.scheduleBackgroundChecks()
         Scheduler.shared.start()
         if Config.schedule != .off { Notify.requestPermissionIfNeeded() }

@@ -64,7 +64,7 @@ stashmac verify                    stashmac status</pre>
 <p>Every command takes <code>--json</code>. Exit codes: 0 fine, 1 something to look at, 2 problem.</p>
 
 <h2 id="privacy">Privacy</h2>
-<p>The provider receives only encrypted pieces with meaningless names, and an encrypted list of what they belong to. It can see when you back up and roughly how much, nothing more. The app itself has no account, no telemetry, and makes no network connection of its own; the only traffic is the provider's app syncing its folder. The optional update check is one request to GitHub with no identifiers.</p>
+<p>The provider receives only encrypted pieces with meaningless names, and an encrypted list of what they belong to. It can see when you back up and roughly how much, nothing more. The app itself has no account, no telemetry, and makes no network connection of its own; the only traffic is the provider's app syncing its folder. The daily update check is one request to GitHub with no identifiers, and nothing installs by itself; it and opening at login are both toggles in Settings.</p>
 <p>Not protected: a Mac with malware running while the app is open, a lost card, or someone with your account deleting the encrypted files. The full threat model is in the repository.</p>
 
 <h2 id="trouble">Troubleshooting</h2>
