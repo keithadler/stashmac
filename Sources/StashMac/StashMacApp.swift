@@ -314,13 +314,14 @@ struct SnapshotsView: View {
             Text("A snapshot is small on its own: unchanged files are stored once and shared. \"Frees\" is what deleting that snapshot alone would give back, the old versions only it still holds.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Table(model.snapshots) {
-                TableColumn("When") { s in Text(s.createdAt.formatted(date: .abbreviated, time: .shortened)) }
+                TableColumn("When") { s in Text(s.createdAt.formatted(date: .abbreviated, time: .shortened)) }.width(min: 190)
                 TableColumn("Files") { s in Text("\(s.files)") }.width(60)
                 TableColumn("Size") { s in Text(ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file)) }.width(80)
                 TableColumn("Frees") { s in Text(ByteCountFormatter.string(fromByteCount: model.uniqueSizes[s.fileName] ?? 0, countStyle: .file)).foregroundStyle(.secondary) }.width(80)
                 TableColumn("From") { s in Text(s.host).foregroundStyle(.secondary) }
                 TableColumn("") { s in Button("Delete") { confirm = s }.disabled(model.busy != nil) }.width(70)
             }
+            .tableStyle(.inset(alternatesRowBackgrounds: false))
             .frame(minHeight: 220)
             Divider()
             HStack(alignment: .firstTextBaseline) {
