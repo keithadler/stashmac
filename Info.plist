@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleDisplayName</key><string>Stash for Mac</string>
+	<key>CFBundleExecutable</key><string>StashMac</string>
+	<key>CFBundleIdentifier</key><string>com.keithadler.stashmac</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleLocalizations</key><array><string>en</string><string>es</string></array>
+	<key>CFBundleName</key><string>Stash for Mac</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSHumanReadableCopyright</key><string>Keith Adler</string>
+	<key>NSDesktopFolderUsageDescription</key><string>Stash for Mac reads the folders you choose to back them up. It never changes them.</string>
+	<key>NSDocumentsFolderUsageDescription</key><string>Stash for Mac reads the folders you choose to back them up. It never changes them.</string>
+	<key>NSDownloadsFolderUsageDescription</key><string>Stash for Mac reads the folders you choose to back them up. It never changes them.</string>
+</dict>
+</plist>
