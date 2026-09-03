@@ -18,18 +18,18 @@ enum Prune {
     /// Deletes manifests beyond `keep` (newest first) and any chunk they alone referenced.
     /// Refuses to touch anything if a remaining manifest cannot be opened: a wrong key or a damaged
     /// manifest must never turn into deleted chunks.
-    static func run(destination: URL, key: MasterKey, keep: Int = Config.keepSnapshots) throws -> PruneReport {
+    static func run(destination: URL, key: MasterKey, keep: Int = Config.keepSnapshots, policy: Retention.Policy = Config.retention, now: Date = Date()) throws -> PruneReport {
         let layout = Layout(destination: destination, key: key)
         let fm = FileManager.default
         var report = PruneReport()
         let manifests = layout.manifestFiles()
-        let keepList = Array(manifests.prefix(max(keep, 1)))
+        // Open every manifest first: a wrong key or a damaged manifest must never turn into deleted chunks.
+        let opened = try manifests.map { try Manifest.open(try Data(contentsOf: $0), key: key) }
+        let dates = opened.map(\.createdAt)
+        let keepSet = policy == .thin ? Retention.thin(dates, now: now) : Retention.last(dates, keep: keep)
         var referenced = Set<String>()
-        for url in keepList {
-            let m = try Manifest.open(try Data(contentsOf: url), key: key)   // throws → nothing is deleted
-            for f in m.files { referenced.formUnion(f.chunks) }
-        }
-        for url in manifests.dropFirst(max(keep, 1)) {
+        for i in keepSet { for f in opened[i].files { referenced.formUnion(f.chunks) } }
+        for (i, url) in manifests.enumerated() where !keepSet.contains(i) {
             try fm.removeItem(at: url); report.snapshotsRemoved += 1
         }
         guard let dirs = try? fm.contentsOfDirectory(at: layout.chunks, includingPropertiesForKeys: nil) else { return report }
@@ -43,6 +43,40 @@ enum Prune {
             if (try? fm.contentsOfDirectory(atPath: dir.path))?.isEmpty == true { try? fm.removeItem(at: dir) }
         }
         return report
+    }
+
+    /// Deletes one snapshot by name, then the chunks only it used.
+    static func delete(snapshot: String, destination: URL, key: MasterKey) throws -> PruneReport {
+        let layout = Layout(destination: destination, key: key)
+        let url = layout.manifests.appendingPathComponent(snapshot)
+        _ = try Manifest.open(try Data(contentsOf: url), key: key)   // proves the key before deleting anything
+        try FileManager.default.removeItem(at: url)
+        var r = try run(destination: destination, key: key, keep: Int.max, policy: .last)
+        r.snapshotsRemoved = 1
+        return r
+    }
+
+    /// Per snapshot: bytes held by chunks that no other snapshot references, i.e. what deleting it frees.
+    static func uniqueSizes(destination: URL, key: MasterKey) -> [String: Int64] {
+        let layout = Layout(destination: destination, key: key)
+        let manifests = layout.manifestFiles()
+        var refs: [String: Int] = [:]
+        var perSnapshot: [String: Set<String>] = [:]
+        for url in manifests {
+            guard let m = try? Manifest.open(try Data(contentsOf: url), key: key) else { continue }
+            let set = Set(m.files.flatMap(\.chunks))
+            perSnapshot[url.lastPathComponent] = set
+            for c in set { refs[c, default: 0] += 1 }
+        }
+        var sizes: [String: Int64] = [:]
+        for (name, set) in perSnapshot {
+            var total: Int64 = 0
+            for c in set where refs[c] == 1 {
+                total += Int64((try? layout.chunk(c).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+            }
+            sizes[name] = total
+        }
+        return sizes
     }
 
     /// Bytes the stash occupies at a destination (chunks plus manifests).

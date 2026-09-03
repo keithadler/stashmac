@@ -38,6 +38,10 @@ enum Screenshots {
         try Data(repeating: 1, count: 50_000).write(to: desk.appendingPathComponent("Notes.txt"))
         Config.sources = [docs, desk]; Config.destinations = [drive]
         _ = try Backup.run(sources: [docs, desk], destination: drive, key: key)
+        try Data(repeating: 9, count: 1_600_000).write(to: docs.appendingPathComponent("Taxes 2025/return.pdf"))
+        _ = try Backup.run(sources: [docs, desk], destination: drive, key: key)
+        try Data(repeating: 4, count: 70_000).write(to: desk.appendingPathComponent("Notes.txt"))
+        _ = try Backup.run(sources: [docs, desk], destination: drive, key: key)
         Config.lastBackup = Date().addingTimeInterval(-3600); Config.lastVerify = Date().addingTimeInterval(-2 * 86400)
         let model = StashModel.shared
         model.key = key; model.sources = Config.sources; model.destinations = Config.destinations; model.lastBackup = Config.lastBackup
@@ -54,6 +58,10 @@ enum Screenshots {
             let card = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 420), styleMask: [.titled], backing: .buffered, defer: false)
             card.title = String(localized: "Your recovery card"); card.contentView = NSHostingView(rootView: RecoveryCardView(key: key)); card.center(); card.makeKeyAndOrderFront(nil)
             settle(); written.append(try capture(card, to: dir.appendingPathComponent("card\(suffix).png"))); card.orderOut(nil)
+
+            let snaps = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480), styleMask: [.titled], backing: .buffered, defer: false)
+            snaps.title = String(localized: "Snapshots"); snaps.contentView = NSHostingView(rootView: SnapshotsView()); snaps.center(); snaps.makeKeyAndOrderFront(nil)
+            settle(); written.append(try capture(snaps, to: dir.appendingPathComponent("snapshots\(suffix).png"))); snaps.orderOut(nil)
 
             let settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 400), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             settings.title = String(localized: "Settings"); settings.contentView = NSHostingView(rootView: SettingsView()); settings.center(); settings.makeKeyAndOrderFront(nil)

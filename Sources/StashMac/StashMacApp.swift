@@ -62,16 +62,48 @@ final class StashModel: ObservableObject {
     @Published var sources: [URL] = Config.sources
     @Published var destinations: [URL] = Config.destinations
     @Published var snapshots: [SnapshotInfo] = []
+    @Published var uniqueSizes: [String: Int64] = [:]
+    @Published var stashSize: Int64 = 0
     @Published var busy: String?
     @Published var progress: Double = 0
     @Published var lastMessage = ""
     @Published var lastBackup = Config.lastBackup
 
     func refreshSnapshots() {
-        guard let key, let d = destinations.first else { snapshots = []; return }
+        guard let key, let d = availableDestinations.first else { snapshots = []; uniqueSizes = [:]; stashSize = 0; return }
         Task.detached { [key, d] in
             let s = Restore.snapshots(destination: d, key: key)
-            await MainActor.run { self.snapshots = s }
+            let u = Prune.uniqueSizes(destination: d, key: key)
+            let total = Prune.size(destination: d, key: key)
+            await MainActor.run { self.snapshots = s; self.uniqueSizes = u; self.stashSize = total }
+        }
+    }
+
+    func deleteSnapshot(_ snap: SnapshotInfo) {
+        guard let key, let d = availableDestinations.first, busy == nil else { return }
+        busy = String(localized: "Deleting snapshot…"); progress = 0
+        Task.detached { [key] in
+            let msg: String
+            do {
+                let r = try Prune.delete(snapshot: snap.fileName, destination: d, key: key)
+                msg = String(format: String(localized: "Deleted the snapshot and reclaimed %@."), ByteCountFormatter.string(fromByteCount: r.bytesFreed, countStyle: .file))
+            } catch { msg = error.localizedDescription }
+            await MainActor.run { self.lastMessage = msg; self.busy = nil; self.refreshSnapshots() }
+        }
+    }
+
+    func pruneNow() {
+        guard let key, busy == nil else { return }
+        let dests = availableDestinations
+        busy = String(localized: "Tidying snapshots…"); progress = 0
+        Task.detached { [key] in
+            var lines: [String] = []
+            for d in dests {
+                do { let r = try Prune.run(destination: d, key: key); lines.append(String(format: String(localized: "%@: removed %lld snapshots, reclaimed %@"), d.lastPathComponent, r.snapshotsRemoved, ByteCountFormatter.string(fromByteCount: r.bytesFreed, countStyle: .file))) }
+                catch { lines.append("\(d.lastPathComponent): \(error.localizedDescription)") }
+            }
+            let summary = lines.joined(separator: "\n")
+            await MainActor.run { self.lastMessage = summary; self.busy = nil; self.refreshSnapshots() }
         }
     }
 
@@ -147,6 +179,7 @@ final class StashModel: ObservableObject {
 struct MainView: View {
     @ObservedObject private var model = StashModel.shared
     @State private var showCard = false
+    @State private var showSnapshots = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -171,6 +204,7 @@ struct MainView: View {
         .padding(24)
         .frame(minWidth: 760, idealWidth: 860, minHeight: 420, idealHeight: 520)
         .sheet(isPresented: $showCard) { if let key = model.key { RecoveryCardView(key: key) } }
+        .sheet(isPresented: $showSnapshots) { SnapshotsView() }
         .onAppear { model.refreshSnapshots() }
     }
 
@@ -198,6 +232,9 @@ struct MainView: View {
                 list(model.destinations, empty: "Nothing yet. Your iCloud Drive, Google Drive, OneDrive or Dropbox folder, a disk, or a NAS.", remove: model.removeDestination)
                 Button("Add Destination…") { pick(message: "Choose where the encrypted backup goes. A folder your cloud app syncs works best.") { model.addDestination($0) } }
                 if model.destinations.count == 1 { Text("Two destinations are safer: an account can be lost.").font(.caption).foregroundStyle(.orange) }
+                if model.stashSize > 0, let d = model.availableDestinations.first {
+                    Text(String(format: String(localized: "Using %@ at %@"), ByteCountFormatter.string(fromByteCount: model.stashSize, countStyle: .file), d.lastPathComponent)).font(.caption).foregroundStyle(.secondary)
+                }
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text("Snapshots").font(.headline)
@@ -217,6 +254,7 @@ struct MainView: View {
                     Button("Verify") { model.verify() }.disabled(model.snapshots.isEmpty || model.busy != nil)
                 }
                 if let last = model.lastBackup { Text(String(format: String(localized: "Last backup %@"), last.formatted(date: .abbreviated, time: .shortened))).font(.caption).foregroundStyle(.secondary) }
+                if !model.snapshots.isEmpty { Button("Manage Snapshots…") { showSnapshots = true }.font(.caption) }
             }
         }
     }
@@ -253,6 +291,59 @@ struct MainView: View {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         do { let k = try MasterKey(words: field.stringValue); KeyStore.save(k); model.key = k; model.refreshSnapshots() }
         catch { NSAlert(error: error).runModal() }
+    }
+}
+
+/// Every snapshot with what deleting it would free, the stash's size, and the retention policy.
+struct SnapshotsView: View {
+    @ObservedObject private var model = StashModel.shared
+    @AppStorage("retention") private var retention = Retention.Policy.last.rawValue
+    @AppStorage("keepSnapshots") private var keepSnapshots = 30
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirm: SnapshotInfo?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Snapshots").font(.title2).bold()
+                Spacer()
+                if let d = model.availableDestinations.first {
+                    Text(String(format: String(localized: "%lld snapshots · using %@ at %@"), model.snapshots.count, ByteCountFormatter.string(fromByteCount: model.stashSize, countStyle: .file), d.lastPathComponent)).foregroundStyle(.secondary)
+                }
+            }
+            Text("A snapshot is small on its own: unchanged files are stored once and shared. \"Frees\" is what deleting that snapshot alone would give back, the old versions only it still holds.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Table(model.snapshots) {
+                TableColumn("When") { s in Text(s.createdAt.formatted(date: .abbreviated, time: .shortened)) }
+                TableColumn("Files") { s in Text("\(s.files)") }.width(60)
+                TableColumn("Size") { s in Text(ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file)) }.width(80)
+                TableColumn("Frees") { s in Text(ByteCountFormatter.string(fromByteCount: model.uniqueSizes[s.fileName] ?? 0, countStyle: .file)).foregroundStyle(.secondary) }.width(80)
+                TableColumn("From") { s in Text(s.host).foregroundStyle(.secondary) }
+                TableColumn("") { s in Button("Delete") { confirm = s }.disabled(model.busy != nil) }.width(70)
+            }
+            .frame(minHeight: 220)
+            Divider()
+            HStack(alignment: .firstTextBaseline) {
+                Picker("Keep", selection: $retention) { ForEach(Retention.Policy.allCases) { Text($0.label).tag($0.rawValue) } }.frame(width: 300)
+                if retention == Retention.Policy.last.rawValue {
+                    Stepper(value: $keepSnapshots, in: 1...365) { Text(String(format: String(localized: "newest %lld"), keepSnapshots)) }
+                }
+            }
+            Text(retention == Retention.Policy.thin.rawValue
+                 ? "Everything from the last week, one a day for a month, one a week for a year, one a month after that. Runs after each backup."
+                 : "Older snapshots and the pieces only they used are deleted after each backup.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("Apply Now") { model.pruneNow() }.disabled(model.busy != nil)
+                if let busy = model.busy { ProgressView().controlSize(.small); Text(busy).font(.caption).foregroundStyle(.secondary) }
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20).frame(width: 720, height: 480)
+        .confirmationDialog(confirm.map { String(format: String(localized: "Delete the snapshot from %@?"), $0.createdAt.formatted(date: .abbreviated, time: .shortened)) } ?? "", isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }), titleVisibility: .visible) {
+            Button("Delete Snapshot", role: .destructive) { if let s = confirm { model.deleteSnapshot(s) }; confirm = nil }
+        } message: { Text("Files that exist only in this snapshot are gone for good. Files that also exist in other snapshots are unaffected.") }
     }
 }
 
@@ -321,6 +412,7 @@ struct SettingsView: View {
     @AppStorage("schedule") private var schedule = Config.Schedule.daily.rawValue
     @AppStorage("weeklyVerify") private var weeklyVerify = true
     @AppStorage("keepSnapshots") private var keepSnapshots = 30
+    @AppStorage("retention") private var retention = Retention.Policy.last.rawValue
     @AppStorage("menuBar") private var menuBar = true
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     var body: some View {
@@ -328,8 +420,11 @@ struct SettingsView: View {
             Section("When to back up") {
                 Picker("Back up", selection: $schedule) { ForEach(Config.Schedule.allCases) { Text($0.label).tag($0.rawValue) } }
                 Text("Runs quietly in the background when a destination is reachable. Uploads only what changed.").font(.caption).foregroundStyle(.secondary)
-                Stepper(value: $keepSnapshots, in: 1...365) { Text(String(format: String(localized: "Keep the last %lld snapshots"), keepSnapshots)) }
-                Text("Older snapshots and the pieces only they used are deleted after each backup, so the destination stays a sensible size.").font(.caption).foregroundStyle(.secondary)
+                Picker("Keep", selection: $retention) { ForEach(Retention.Policy.allCases) { Text($0.label).tag($0.rawValue) } }
+                if retention == Retention.Policy.last.rawValue {
+                    Stepper(value: $keepSnapshots, in: 1...365) { Text(String(format: String(localized: "Keep the last %lld snapshots"), keepSnapshots)) }
+                }
+                Text("Older snapshots and the pieces only they used are deleted after each backup, so the destination stays a sensible size. See every snapshot and what it holds under Manage Snapshots in the main window.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Check the backup once a week by restoring a random file", isOn: $weeklyVerify)
                 Toggle("Show Stash for Mac in the menu bar", isOn: $menuBar)
                 Toggle("Open Stash for Mac when I log in", isOn: $launchAtLogin).onChange(of: launchAtLogin) { _, on in

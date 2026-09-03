@@ -19,7 +19,7 @@
 </head>
 <body><main>
 <h1>Stash for Mac <small>Encrypted backup of the folders that matter, into storage you already have</small></h1>
-<nav><a href="#start">Getting started</a><a href="#card">The recovery card</a><a href="#where">Where to put it</a><a href="#restore">Restoring</a><a href="#verify">Checking it works</a><a href="#cli">Command line</a><a href="#privacy">Privacy</a><a href="#trouble">Troubleshooting</a></nav>
+<nav><a href="#start">Getting started</a><a href="#card">The recovery card</a><a href="#where">Where to put it</a><a href="#restore">Restoring</a><a href="#space">Space</a><a href="#verify">Checking it works</a><a href="#cli">Command line</a><a href="#privacy">Privacy</a><a href="#trouble">Troubleshooting</a></nav>
 
 <h2 id="start">Getting started: three steps</h2>
 <ol>
@@ -51,6 +51,16 @@
 <p><strong>On this Mac:</strong> pick a snapshot in the window, click Restore…, choose where the files should go. They arrive in a folder named after the original, with their dates. Nothing is written over your current files unless you choose that folder.</p>
 <p><strong>On a new Mac:</strong> install Stash for Mac, click I Have a Recovery Card…, type the 24 words (or use <code>stashmac key restore --qr card.png</code> with a photo of the card), add the destination folder, and the snapshots appear.</p>
 <p>If a piece of the backup is damaged, that one file is reported by name and not written; every other file restores normally.</p>
+
+<h2 id="space">Space and snapshots</h2>
+<p>Every backup makes a snapshot, but a snapshot is not a copy. Files are split into pieces and each piece is stored once, so thirty snapshots of an unchanged folder cost about the same as one. What takes space is <em>old versions of files that changed</em>: edit a 200 MB video ten times and ten versions of it are kept until their snapshots go.</p>
+<p><strong>Manage Snapshots</strong> in the main window lists every snapshot with its size and, in the Frees column, what deleting just that snapshot would give back. Delete any one of them. The window also shows the total the stash is using at the destination.</p>
+<p>Two automatic policies, chosen in the same window or in Settings, run after each backup:</p>
+<ul>
+<li><strong>Keep the newest N</strong> (30 by default).</li>
+<li><strong>Thin out over time</strong>: everything from the last week, one a day for a month, one a week for a year, one a month after that. Good for folders that change often.</li>
+</ul>
+<p>In the terminal: <code>stashmac snapshots</code> shows the same numbers, <code>stashmac forget &lt;snapshot&gt;</code> deletes one, <code>stashmac prune --thin</code> applies the thinning policy now.</p>
 
 <h2 id="verify">Checking it works</h2>
 <p>Verify opens every piece of the latest snapshot and restores one random file to a temporary place to prove the whole path. Settings › "Check the backup once a week" does this on its own. A backup that has never been verified is a guess.</p>

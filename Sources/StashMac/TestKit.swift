@@ -19,7 +19,7 @@ struct TestCase { let name: String; let run: @MainActor (T) throws -> Void }
 struct TestSuite { let name: String; let cases: [TestCase] }
 
 enum TestKit {
-    static var suites: [TestSuite] { [KeySuite.suite, ChunkSuite.suite, BackupSuite.suite, PruneSuite.suite, SchedulerSuite.suite] }
+    static var suites: [TestSuite] { [KeySuite.suite, ChunkSuite.suite, BackupSuite.suite, PruneSuite.suite, RetentionSuite.suite, SchedulerSuite.suite] }
 
     struct Result { let suite: String, name: String, failures: [String], skipped: String?, checks: Int, ms: Double; var passed: Bool { failures.isEmpty && skipped == nil } }
 

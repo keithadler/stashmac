@@ -19,10 +19,11 @@ enum CLI {
       stashmac add <folder>             back this folder up (repeatable); stashmac remove <folder>
       stashmac dest <folder>            a destination: any folder a provider syncs, a disk, a NAS
       stashmac backup [--json]          back up every folder to every destination now
-      stashmac snapshots [--json]       list snapshots at each destination
+      stashmac snapshots [--json]       list snapshots with what deleting each would free
+      stashmac forget <snapshot>        delete one snapshot and the pieces only it used
       stashmac restore <snapshot|latest> <target folder> [--only <path>] [--dest <folder>]
       stashmac verify [--json]          open every chunk of the latest snapshot; restore one random file
-      stashmac prune [--keep N] [--json] drop old snapshots and the chunks only they used (runs after each backup)
+      stashmac prune [--keep N | --thin] [--json]  apply the retention policy now (also runs after each backup)
       stashmac seal <in> <out>          encrypt one file as a chunk (proof of the format)
       stashmac open <in> <out>          decrypt one chunk
       stashmac status [--json]
@@ -178,10 +179,11 @@ enum CLI {
             var all: [[String: Any]] = []
             for d in Config.destinations {
                 let snaps = Restore.snapshots(destination: d, key: k)
-                if !js { print(d.path + (snaps.isEmpty ? ": no snapshots" : "")) }
+                let unique = Prune.uniqueSizes(destination: d, key: k)
+                if !js { print(d.path + (snaps.isEmpty ? ": no snapshots" : ": \(snaps.count) snapshots, using \(ByteCountFormatter.string(fromByteCount: Prune.size(destination: d, key: k), countStyle: .file))")) }
                 for s in snaps {
-                    all.append(["destination": d.path, "snapshot": s.fileName, "created_at": ISO8601DateFormatter().string(from: s.createdAt), "host": s.host, "files": s.files, "bytes": s.bytes, "placeholders": s.placeholders])
-                    if !js { print("  \(s.fileName)  \(s.createdAt.formatted(date: .abbreviated, time: .shortened))  \(s.files) files, \(ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file)), from \(s.host)") }
+                    all.append(["destination": d.path, "snapshot": s.fileName, "created_at": ISO8601DateFormatter().string(from: s.createdAt), "host": s.host, "files": s.files, "bytes": s.bytes, "placeholders": s.placeholders, "frees": unique[s.fileName] ?? 0])
+                    if !js { print("  \(s.fileName)  \(s.createdAt.formatted(date: .abbreviated, time: .shortened))  \(s.files) files, \(ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file)), from \(s.host); deleting frees \(ByteCountFormatter.string(fromByteCount: unique[s.fileName] ?? 0, countStyle: .file))") }
                 }
             }
             if js { print(json(["snapshots": all])) }
@@ -218,13 +220,26 @@ enum CLI {
             if js { print(json(["results": out])) }
             return worst
 
+        case "forget":
+            guard let k = KeyStore.load() else { fputs("no key on this Mac\n", stderr); return 2 }
+            guard let name = pos.first else { fputs("forget <snapshot>\n", stderr); return 64 }
+            var freed: Int64 = 0; var found = false
+            for d in Config.destinations where FileManager.default.fileExists(atPath: Layout(destination: d, key: k).manifests.appendingPathComponent(name).path) {
+                do { let r = try Prune.delete(snapshot: name, destination: d, key: k); freed += r.bytesFreed; found = true }
+                catch { fputs("\(d.path): \(error.localizedDescription)\n", stderr); return 2 }
+            }
+            guard found else { fputs("no snapshot named \(name)\n", stderr); return 2 }
+            print(js ? json(["forgot": name, "bytes_freed": freed]) : "forgot \(name), reclaimed \(ByteCountFormatter.string(fromByteCount: freed, countStyle: .file))")
+            return 0
+
         case "prune":
             guard let k = KeyStore.load() else { fputs("no key on this Mac\n", stderr); return 2 }
             let keep = Int(value("--keep", args) ?? "") ?? Config.keepSnapshots
+            let policy: Retention.Policy = flag("--thin", args) ? .thin : (value("--keep", args) != nil ? .last : Config.retention)
             var out: [[String: Any]] = []
             for d in Config.destinations {
                 do {
-                    let p = try Prune.run(destination: d, key: k, keep: keep)
+                    let p = try Prune.run(destination: d, key: k, keep: keep, policy: policy)
                     out.append(["destination": d.path, "snapshots_removed": p.snapshotsRemoved, "chunks_removed": p.chunksRemoved, "bytes_freed": p.bytesFreed, "chunks_kept": p.chunksKept, "bytes_kept": p.bytesKept])
                     if !js { print("\(d.path): removed \(p.snapshotsRemoved) snapshots and \(p.chunksRemoved) chunks (\(ByteCountFormatter.string(fromByteCount: p.bytesFreed, countStyle: .file))); keeping \(ByteCountFormatter.string(fromByteCount: p.bytesKept, countStyle: .file))") }
                 } catch { fputs("\(d.path): \(error.localizedDescription)\n", stderr); return 2 }
@@ -245,7 +260,7 @@ enum CLI {
                 destinations:  \(Config.destinations.isEmpty ? "none (stashmac dest <folder>)" : Config.destinations.map(\.path).joined(separator: ", "))
                 last backup:   \(Config.lastBackup.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
                 last verify:   \(Config.lastVerify.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
-                keep:          \(Config.keepSnapshots) snapshots
+                keep:          \(Config.retention == .thin ? "thin out over time" : "newest \(Config.keepSnapshots) snapshots")
                 at destination:\(k == nil ? " ?" : Config.destinations.map { " " + ByteCountFormatter.string(fromByteCount: Prune.size(destination: $0, key: k!), countStyle: .file) }.joined(separator: ","))
                 """)
             }
