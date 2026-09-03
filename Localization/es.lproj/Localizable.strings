@@ -121,3 +121,7 @@
 "Files and folders whose name matches are left out. Photos libraries are skipped by default: they have their own backup, and the library is one huge package that changes constantly." = "Los archivos y carpetas cuyo nombre coincida se dejan fuera. Las fototecas se omiten por defecto: tienen su propia copia y son un paquete enorme que cambia constantemente.";
 "No size limit" = "Sin límite de tamaño";
 "Skip files over %lld MB" = "Omitir archivos de más de %lld MB";
+"%lld snapshots share %@ at %@" = "%lld instantáneas comparten %@ en %@";
+"%lld files, %@" = "%lld archivos, %@";
+" · nothing only here" = " · nada exclusivo";
+" · %@ only here" = " · %@ solo aquí";

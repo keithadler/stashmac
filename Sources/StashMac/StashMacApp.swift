@@ -241,11 +241,18 @@ struct MainView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Snapshots").font(.headline)
                 if model.snapshots.isEmpty { Text("No backup yet.").font(.caption).foregroundStyle(.secondary) }
+                else if model.stashSize > 0, let d = model.availableDestinations.first {
+                    // Snapshots share their pieces; say what is actually stored, or three rows read as three copies.
+                    Text(String(format: String(localized: "%lld snapshots share %@ at %@"), model.snapshots.count, ByteCountFormatter.string(fromByteCount: model.stashSize, countStyle: .file), d.lastPathComponent))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 ForEach(model.snapshots.prefix(8)) { s in
                     HStack {
                         VStack(alignment: .leading) {
                             Text(s.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.callout)
-                            Text(String(format: String(localized: "%lld files, %@, from %@"), s.files, ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file), s.host)).font(.caption).foregroundStyle(.secondary)
+                            Text(String(format: String(localized: "%lld files, %@"), s.files, ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file))
+                                 + (model.uniqueSizes[s.fileName].map { u in u == 0 ? String(localized: " · nothing only here") : String(format: String(localized: " · %@ only here"), ByteCountFormatter.string(fromByteCount: u, countStyle: .file)) } ?? ""))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Button("Restore…") { browsing = s }.font(.caption)
