@@ -129,8 +129,9 @@ enum CLI {
             let url = URL(fileURLWithPath: f).standardizedFileURL
             if cmd == "add" {
                 guard Config.isFolder(url) else { fputs("not a folder: \(url.path)\n", stderr); return 2 }
+                if let why = Config.objection(toSource: url, sources: Config.sources, destinations: Config.destinations) { fputs("\(why)\n", stderr); return 2 }
                 if !Config.sources.contains(url) { Config.sources += [url] }
-                print("backing up \(url.path)")
+                print("backing up \(url.path)" + (Config.isHome(url) ? " (Library is left out automatically)" : ""))
             } else {
                 Config.sources.removeAll { $0 == url }; print("no longer backing up \(url.path)")
             }
@@ -140,6 +141,7 @@ enum CLI {
             guard let f = pos.first else { fputs("dest <folder>\n", stderr); return 64 }
             let url = URL(fileURLWithPath: f).standardizedFileURL
             guard Config.isFolder(url) else { fputs("not a folder: \(url.path)\n", stderr); return 2 }
+            if let why = Config.objection(toDestination: url, sources: Config.sources) { fputs("\(why)\n", stderr); return 2 }
             if !Config.destinations.contains(url) { Config.destinations += [url] }
             print("backups go to \(url.path)")
             return 0
@@ -226,7 +228,7 @@ enum CLI {
                     let v = try Restore.verify(destination: d, key: k)
                     out.append(["destination": d.path, "chunks_checked": v.chunksChecked, "bad": v.chunksBad, "missing": v.chunksMissing, "sample_file": v.sampleFile as Any, "sample_ok": v.sampleOK as Any])
                     let ok = v.chunksBad.isEmpty && v.chunksMissing.isEmpty && v.sampleOK != false
-                    if !js { print("\(d.path): \(v.chunksChecked) chunks checked, \(v.chunksBad.count) bad, \(v.chunksMissing.count) missing" + (v.sampleFile.map { "; restored \($0) \(v.sampleOK == true ? "OK" : "FAILED")" } ?? "; no snapshot yet")) }
+                    if !js { print("\(d.path): \(v.chunksChecked) chunks checked, \(v.chunksBad.count) bad, \(v.chunksMissing.count) missing" + (v.chunksInCloudOnly > 0 ? ", \(v.chunksInCloudOnly) only in the cloud (not downloaded)" : "") + (v.sampleFile.map { "; restored \($0) \(v.sampleOK == true ? "OK" : "FAILED")" } ?? "; no local sample to restore")) }
                     if !ok { worst = 2 } else if v.chunksChecked == 0 { worst = max(worst, 1) }
                 } catch { if !js { fputs("\(d.path): \(error.localizedDescription)\n", stderr) }; worst = 2 }
             }

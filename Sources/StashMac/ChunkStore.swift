@@ -10,6 +10,10 @@ protocol ChunkStore {
     var name: String { get }
     func prepare() throws
     func hasChunk(_ name: String) -> Bool
+    /// The chunk exists but its bytes are not on this Mac (a cloud folder with "optimize storage").
+    func isEvicted(_ name: String) -> Bool
+    /// When the chunk was written, for prune's grace period.
+    func chunkDate(_ name: String) -> Date?
     func putChunk(_ name: String, _ data: Data) throws
     func getChunk(_ name: String) throws -> Data
     func deleteChunk(_ name: String) throws
@@ -36,6 +40,8 @@ struct FolderStore: ChunkStore {
 
     func prepare() throws { try layout.prepare() }
     func hasChunk(_ name: String) -> Bool { FileManager.default.fileExists(atPath: layout.chunk(name).path) }
+    func isEvicted(_ name: String) -> Bool { Backup.isDataless(layout.chunk(name)) }
+    func chunkDate(_ name: String) -> Date? { try? layout.chunk(name).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
     func putChunk(_ name: String, _ data: Data) throws {
         let url = layout.chunk(name)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

@@ -125,3 +125,14 @@
 "%lld files, %@" = "%lld archivos, %@";
 " · nothing only here" = " · nada exclusivo";
 " · %@ only here" = " · %@ solo aquí";
+"The whole disk is too much. Choose the folders that matter." = "El disco entero es demasiado. Elige las carpetas que importan.";
+"%@ overlaps the destination %@. A backup must not contain itself." = "%@ se solapa con el destino %@. Una copia no puede contenerse a sí misma.";
+"%@ is already inside %@, which is backed up." = "%@ ya está dentro de %@, que ya se copia.";
+"%@ overlaps %@, which is backed up. A backup must not contain itself." = "%@ se solapa con %@, que ya se copia. Una copia no puede contenerse a sí misma.";
+"Your whole home folder is in. Library (caches and app data) is left out automatically." = "Tu carpeta de inicio entera está incluida. Biblioteca (cachés y datos de apps) se deja fuera automáticamente.";
+" %lld chunks are only in the cloud right now and were not downloaded to check." = " %lld piezas están ahora solo en la nube y no se descargaron para comprobarlas.";
+"skipped" = "omitida";
+"Prove the card is safe: type these three words from it." = "Demuestra que la tarjeta está a salvo: escribe estas tres palabras.";
+"word %lld" = "palabra %lld";
+"That doesn't match the card. Check the numbers and try again." = "No coincide con la tarjeta. Revisa los números e inténtalo de nuevo.";
+"Back" = "Atrás";

@@ -107,9 +107,17 @@ final class StashModel: ObservableObject {
         }
     }
 
-    func addSource(_ u: URL) { if !sources.contains(u) { sources.append(u); Config.sources = sources } }
+    func addSource(_ u: URL) {
+        if let why = Config.objection(toSource: u, sources: sources, destinations: destinations) { lastMessage = why; NSSound.beep(); return }
+        if Config.isHome(u) { lastMessage = String(localized: "Your whole home folder is in. Library (caches and app data) is left out automatically.") }
+        if !sources.contains(u) { sources.append(u); Config.sources = sources }
+    }
     func removeSource(_ u: URL) { sources.removeAll { $0 == u }; Config.sources = sources }
-    func addDestination(_ u: URL) { if !destinations.contains(u) { destinations.append(u); Config.destinations = destinations }; refreshSnapshots() }
+    func addDestination(_ u: URL) {
+        if let why = Config.objection(toDestination: u, sources: sources) { lastMessage = why; NSSound.beep(); return }
+        if !destinations.contains(u) { destinations.append(u); Config.destinations = destinations }
+        refreshSnapshots()
+    }
     func removeDestination(_ u: URL) { destinations.removeAll { $0 == u }; Config.destinations = destinations; refreshSnapshots() }
 
     /// Destinations that are reachable right now (a NAS or a disk may be unplugged).
@@ -154,7 +162,8 @@ final class StashModel: ObservableObject {
                 let v = try Restore.verify(destination: d, key: key) { done, total in Task { @MainActor in self.progress = Double(done) / Double(max(total, 1)) } }
                 ok = v.chunksBad.isEmpty && v.chunksMissing.isEmpty && v.sampleOK != false
                 msg = String(format: String(localized: "%lld chunks checked, %lld bad, %lld missing. Sample restore %@."), v.chunksChecked, v.chunksBad.count, v.chunksMissing.count,
-                             v.sampleOK == true ? String(localized: "OK") : String(localized: "FAILED"))
+                             v.sampleOK == true ? String(localized: "OK") : (v.sampleOK == nil ? String(localized: "skipped") : String(localized: "FAILED")))
+                    + (v.chunksInCloudOnly > 0 ? String(format: String(localized: " %lld chunks are only in the cloud right now and were not downloaded to check."), v.chunksInCloudOnly) : "")
                 Config.lastVerify = Date()
             } catch { msg = error.localizedDescription; ok = false }
             if !ok && reason == "schedule" { Notify.post(String(localized: "Backup check failed"), msg) }
@@ -457,6 +466,10 @@ struct SnapshotsView: View {
 struct RecoveryCardView: View {
     let key: MasterKey
     @Environment(\.dismiss) private var dismiss
+    @State private var checking = false
+    @State private var asked: [Int] = []
+    @State private var answers = ["", "", ""]
+    @State private var wrong = false
 
     var body: some View {
         VStack(spacing: 14) {
@@ -482,14 +495,41 @@ struct RecoveryCardView: View {
                 if let img = QR.image(key.qrPayload, size: 400) { Image(nsImage: img).resizable().interpolation(.none).frame(width: 180, height: 180) }
             }
             Text(String(format: String(localized: "Key fingerprint %@"), key.fingerprint)).font(.caption).foregroundStyle(.secondary)
+            if checking {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Prove the card is safe: type these three words from it.").font(.headline)
+                    HStack {
+                        ForEach(0..<3, id: \.self) { i in
+                            TextField(String(format: String(localized: "word %lld"), asked[i] + 1), text: $answers[i]).textFieldStyle(.roundedBorder).frame(width: 150)
+                        }
+                    }
+                    if wrong { Text("That doesn't match the card. Check the numbers and try again.").font(.caption).foregroundStyle(.red) }
+                }
+            }
             HStack {
                 Button("Save as PDF…") { savePDF() }
                 Button("Print…") { print() }
                 Spacer()
-                Button("I've Kept It Safe") { dismiss() }.keyboardShortcut(.defaultAction)
+                if checking {
+                    Button("Back") { checking = false; wrong = false }
+                    Button("Done") { verify() }.keyboardShortcut(.defaultAction)
+                } else {
+                    Button("I've Kept It Safe") { startCheck() }.keyboardShortcut(.defaultAction)
+                }
             }
         }
         .padding(24).frame(width: 720)
+    }
+
+    private func startCheck() {
+        asked = Array((0..<24).shuffled().prefix(3)).sorted()
+        answers = ["", "", ""]; wrong = false; checking = true
+    }
+
+    private func verify() {
+        let words = key.words
+        let ok = (0..<3).allSatisfy { answers[$0].trimmingCharacters(in: .whitespaces).lowercased() == words[asked[$0]] }
+        if ok { dismiss() } else { wrong = true }
     }
 
     private func savePDF() {

@@ -25,6 +25,7 @@ struct RestoreReport: Equatable {
 
 struct VerifyReport: Equatable {
     var chunksChecked = 0
+    var chunksInCloudOnly = 0      // present at the destination but evicted from this Mac; not downloaded to check
     var chunksBad: [String] = []
     var chunksMissing: [String] = []
     var sampleFile: String?
@@ -104,13 +105,16 @@ enum Restore {
         let names = Array(Set(m.files.flatMap(\.chunks))).sorted()
         for (n, name) in names.enumerated() {
             autoreleasepool {
-                guard store.hasChunk(name), let blob = try? store.getChunk(name) else { report.chunksMissing.append(name); return }
+                guard store.hasChunk(name) else { report.chunksMissing.append(name); return }
+                if store.isEvicted(name) { report.chunksInCloudOnly += 1; return }   // never make the provider download the whole backup
+                guard let blob = try? store.getChunk(name) else { report.chunksMissing.append(name); return }
                 if (try? Chunk.open(blob, key: key)) == nil { report.chunksBad.append(name) }
                 report.chunksChecked += 1
             }
             progress?(n + 1, names.count)
         }
-        if let pick = m.files.randomElement() {
+        // Sample a file whose chunks are all on this Mac, so the check doesn't trigger a download.
+        if let pick = m.files.filter({ $0.chunks.allSatisfy { !store.isEvicted($0) } }).randomElement() {
             report.sampleFile = pick.path
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("stashmac-verify-\(UUID().uuidString)", isDirectory: true)
             defer { try? FileManager.default.removeItem(at: tmp) }

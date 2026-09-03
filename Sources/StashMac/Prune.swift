@@ -36,11 +36,17 @@ enum Prune {
         }
         for name in store.chunkNames() {
             let size = store.chunkSize(name)
-            if referenced.contains(name) { report.chunksKept += 1; report.bytesKept += size }
-            else { try store.deleteChunk(name); report.chunksRemoved += 1; report.bytesFreed += size }
+            if referenced.contains(name) { report.chunksKept += 1; report.bytesKept += size; continue }
+            // Another Mac on the same card may be mid-backup: a chunk younger than the grace period is
+            // left alone even if no manifest references it yet.
+            if let written = store.chunkDate(name), now.timeIntervalSince(written) < grace { report.chunksKept += 1; report.bytesKept += size; continue }
+            try store.deleteChunk(name); report.chunksRemoved += 1; report.bytesFreed += size
         }
         return report
     }
+
+    /// Unreferenced chunks younger than this are never deleted.
+    static let grace: TimeInterval = 2 * 3600
 
     /// Deletes one snapshot by name, then the chunks only it used.
     static func delete(snapshot: String, destination: URL, key: MasterKey) throws -> PruneReport {

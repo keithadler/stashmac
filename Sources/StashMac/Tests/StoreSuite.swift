@@ -7,12 +7,17 @@ import Foundation
 final class MemoryStore: ChunkStore {
     var chunks: [String: Data] = [:]
     var manifests: [String: Data] = [:]
-    var puts = 0
+    var dates: [String: Date] = [:]
+    var evicted = Set<String>()
+    var readNames = Set<String>()
+    var puts = 0, reads = 0
     var name: String { "memory" }
     func prepare() throws {}
     func hasChunk(_ name: String) -> Bool { chunks[name] != nil }
+    func isEvicted(_ name: String) -> Bool { evicted.contains(name) }
+    func chunkDate(_ name: String) -> Date? { dates[name] ?? Date.distantPast }
     func putChunk(_ name: String, _ data: Data) throws { chunks[name] = data; puts += 1 }
-    func getChunk(_ name: String) throws -> Data { guard let d = chunks[name] else { throw ChunkError.notAChunk }; return d }
+    func getChunk(_ name: String) throws -> Data { guard let d = chunks[name] else { throw ChunkError.notAChunk }; reads += 1; readNames.insert(name); return d }
     func deleteChunk(_ name: String) throws { chunks[name] = nil }
     func chunkNames() -> [String] { Array(chunks.keys) }
     func chunkSize(_ name: String) -> Int64 { Int64(chunks[name]?.count ?? 0) }

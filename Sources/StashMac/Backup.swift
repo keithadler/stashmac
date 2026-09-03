@@ -46,8 +46,10 @@ enum Backup {
         let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey, .nameKey]
         guard let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys, options: [], errorHandler: { _, _ in true }) else { return ([], [], 0) }
         let rootPath = root.standardizedFileURL.path + "/"
+        let skipLibrary = Config.isHome(root)   // ~/Library is caches, app data and hundreds of thousands of small files
         for case let url as URL in e {
             guard let v = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+            if skipLibrary, v.isDirectory == true, url.standardizedFileURL.path == rootPath + "Library" { e.skipDescendants(); skipped += 1; continue }
             if let n = v.name, ignoredNames.contains(n) { if v.isDirectory == true { e.skipDescendants() }; continue }
             if let n = v.name, exclude.contains(where: { matches(n, $0) }) { skipped += 1; if v.isDirectory == true { e.skipDescendants() }; continue }
             if v.isSymbolicLink == true { if v.isDirectory == true { e.skipDescendants() }; continue }

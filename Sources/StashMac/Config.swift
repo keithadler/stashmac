@@ -51,6 +51,26 @@ enum Config {
     static var weeklyVerify: Bool { defaults.object(forKey: "weeklyVerify") as? Bool ?? true }
     static var menuBar: Bool { defaults.object(forKey: "menuBar") as? Bool ?? true }
 
+    /// Why a folder cannot be added as a source or destination, in plain words; nil when it can.
+    static func objection(toSource url: URL, sources: [URL], destinations: [URL]) -> String? {
+        let p = url.standardizedFileURL.path
+        if p == "/" { return String(localized: "The whole disk is too much. Choose the folders that matter.") }
+        for d in destinations {
+            if isInside(p, d.standardizedFileURL.path) || isInside(d.standardizedFileURL.path, p) { return String(format: String(localized: "%@ overlaps the destination %@. A backup must not contain itself."), url.lastPathComponent, d.lastPathComponent) }
+        }
+        for s in sources where isInside(p, s.standardizedFileURL.path) { return String(format: String(localized: "%@ is already inside %@, which is backed up."), url.lastPathComponent, s.lastPathComponent) }
+        return nil
+    }
+    static func objection(toDestination url: URL, sources: [URL]) -> String? {
+        let p = url.standardizedFileURL.path
+        for s in sources {
+            if isInside(p, s.standardizedFileURL.path) || isInside(s.standardizedFileURL.path, p) { return String(format: String(localized: "%@ overlaps %@, which is backed up. A backup must not contain itself."), url.lastPathComponent, s.lastPathComponent) }
+        }
+        return nil
+    }
+    static func isInside(_ path: String, _ folder: String) -> Bool { path == folder || path.hasPrefix(folder.hasSuffix("/") ? folder : folder + "/") }
+    static var isHome: (URL) -> Bool = { $0.standardizedFileURL.path == FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path }
+
     static func isFolder(_ url: URL) -> Bool {
         var d: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &d) && d.boolValue
