@@ -260,7 +260,7 @@ struct MainView: View {
                         VStack(alignment: .leading) {
                             Text(s.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.callout)
                             Text(String(format: String(localized: "%lld files, %@"), s.files, ByteCountFormatter.string(fromByteCount: s.bytes, countStyle: .file))
-                                 + (model.uniqueSizes[s.fileName].map { u in u == 0 ? String(localized: " · nothing only here") : String(format: String(localized: " · %@ only here"), ByteCountFormatter.string(fromByteCount: u, countStyle: .file)) } ?? ""))
+                                 + (model.uniqueSizes[s.fileName].map { u in u == 0 ? String(localized: " · adds nothing") : String(format: String(localized: " · adds %@"), ByteCountFormatter.string(fromByteCount: u, countStyle: .file)) } ?? ""))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()

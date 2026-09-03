@@ -123,8 +123,8 @@
 "Skip files over %lld MB" = "Omitir archivos de más de %lld MB";
 "%lld snapshots share %@ at %@" = "%lld instantáneas comparten %@ en %@";
 "%lld files, %@" = "%lld archivos, %@";
-" · nothing only here" = " · nada exclusivo";
-" · %@ only here" = " · %@ solo aquí";
+" · adds nothing" = " · no añade nada";
+" · adds %@" = " · añade %@";
 "The whole disk is too much. Choose the folders that matter." = "El disco entero es demasiado. Elige las carpetas que importan.";
 "%@ overlaps the destination %@. A backup must not contain itself." = "%@ se solapa con el destino %@. Una copia no puede contenerse a sí misma.";
 "%@ is already inside %@, which is backed up." = "%@ ya está dentro de %@, que ya se copia.";
