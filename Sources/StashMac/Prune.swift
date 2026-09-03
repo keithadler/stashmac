@@ -30,16 +30,19 @@ enum Prune {
         let dates = opened.map(\.createdAt)
         let keepSet = policy == .thin ? Retention.thin(dates, now: now) : Retention.last(dates, keep: keep)
         var referenced = Set<String>()
-        for i in keepSet { for f in opened[i].files { referenced.formUnion(f.chunks) } }
+        var released = Set<String>()   // chunks the removed manifests used: complete uploads, free to go now
+        for (i, m) in opened.enumerated() {
+            for f in m.files { if keepSet.contains(i) { referenced.formUnion(f.chunks) } else { released.formUnion(f.chunks) } }
+        }
         for (i, name) in manifests.enumerated() where !keepSet.contains(i) {
             try store.deleteManifest(name); report.snapshotsRemoved += 1
         }
         for name in store.chunkNames() {
             let size = store.chunkSize(name)
             if referenced.contains(name) { report.chunksKept += 1; report.bytesKept += size; continue }
-            // Another Mac on the same card may be mid-backup: a chunk younger than the grace period is
-            // left alone even if no manifest references it yet.
-            if let written = store.chunkDate(name), now.timeIntervalSince(written) < grace { report.chunksKept += 1; report.bytesKept += size; continue }
+            // A chunk no manifest has ever referenced is either an orphan from an interrupted run or an
+            // upload in flight from another Mac on the same card; leave it alone while it is fresh.
+            if !released.contains(name), let written = store.chunkDate(name), now.timeIntervalSince(written) < grace { report.chunksKept += 1; report.bytesKept += size; continue }
             try store.deleteChunk(name); report.chunksRemoved += 1; report.bytesFreed += size
         }
         return report
@@ -54,11 +57,20 @@ enum Prune {
     }
 
     static func delete(snapshot: String, store: ChunkStore, key: MasterKey) throws -> PruneReport {
-        _ = try Manifest.open(try store.getManifest(snapshot), key: key)   // proves the key before deleting anything
+        let manifests = store.manifestNames()
+        guard manifests.contains(snapshot) else { throw ChunkError.notAChunk }
+        let opened = try manifests.map { try Manifest.open(try store.getManifest($0), key: key) }   // proves the key before deleting anything
+        var referenced = Set<String>(), released = Set<String>()
+        for (i, m) in opened.enumerated() { for f in m.files { if manifests[i] == snapshot { released.formUnion(f.chunks) } else { referenced.formUnion(f.chunks) } } }
         try store.deleteManifest(snapshot)
-        var r = try run(store: store, key: key, keep: Int.max, policy: .last)
-        r.snapshotsRemoved = 1
-        return r
+        var report = PruneReport(snapshotsRemoved: 1)
+        for name in store.chunkNames() {
+            let size = store.chunkSize(name)
+            if referenced.contains(name) { report.chunksKept += 1; report.bytesKept += size; continue }
+            if !released.contains(name), let written = store.chunkDate(name), Date().timeIntervalSince(written) < grace { report.chunksKept += 1; report.bytesKept += size; continue }
+            try store.deleteChunk(name); report.chunksRemoved += 1; report.bytesFreed += size
+        }
+        return report
     }
 
     /// Per snapshot: bytes held by chunks that no other snapshot references, i.e. what deleting it frees.
