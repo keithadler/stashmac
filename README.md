@@ -11,7 +11,7 @@ Free, MIT licensed, no account, no server, no subscription. Same family as
 <p align="center"><img src="docs/screenshots/main.png" width="760" alt="Stash for Mac: folders to protect, where it goes, snapshots"></p>
 <p align="center"><img src="docs/screenshots/card.png" width="560" alt="The recovery card: 24 words and a QR code"></p>
 
-**Status: complete for a first release, not yet published.** Key and recovery card, encrypted
+**Version 1.0.0.** Key and recovery card, encrypted
 chunks and manifests, backup into any folder, a restore browser, verify, snapshot management with
 two retention policies, exclusions, schedules, a menu bar presence, notifications, help in two
 languages and tests three ways are all built. Google Drive and OneDrive over their own APIs (for
