@@ -8,6 +8,9 @@ and a QR code on a card.
 Free, MIT licensed, no account, no server, no subscription. Same family as
 [Tidy for Mac](https://github.com/keithadler/tidymac) and [Clip for Mac](https://github.com/keithadler/clipmac).
 
+<p align="center"><img src="docs/screenshots/main.png" width="760" alt="Stash for Mac: folders to protect, where it goes, snapshots"></p>
+<p align="center"><img src="docs/screenshots/card.png" width="560" alt="The recovery card: 24 words and a QR code"></p>
+
 **Status: works, not yet released.** Key and recovery card, encrypted chunks and manifests,
 backup into any folder, restore, and verify are built and tested end to end. Schedules, a menu bar
 presence, the Google Drive and OneDrive APIs, help pages and a release are still to come.

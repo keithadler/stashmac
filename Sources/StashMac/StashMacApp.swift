@@ -257,7 +257,22 @@ struct RecoveryCardView: View {
             Text("Your recovery card").font(.title2).bold()
             Text("Print it or write it down, then put it somewhere safe. Stash for Mac does not keep a copy.").foregroundStyle(.secondary).multilineTextAlignment(.center)
             HStack(alignment: .top, spacing: 24) {
-                Text(Mnemonic.card(key.words)).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                let words = key.words
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
+                    ForEach(0..<6, id: \.self) { row in
+                        GridRow {
+                            ForEach(0..<4, id: \.self) { col in
+                                let i = row * 4 + col
+                                HStack(spacing: 4) {
+                                    Text("\(i + 1).").font(.system(.callout, design: .monospaced)).foregroundStyle(.secondary).frame(width: 28, alignment: .trailing)
+                                    Text(words[i]).font(.system(.body, design: .monospaced)).bold()
+                                }
+                            }
+                        }
+                    }
+                }
+                .textSelection(.enabled)
+                Spacer(minLength: 0)
                 if let img = QR.image(key.qrPayload, size: 400) { Image(nsImage: img).resizable().interpolation(.none).frame(width: 180, height: 180) }
             }
             Text(String(format: String(localized: "Key fingerprint %@"), key.fingerprint)).font(.caption).foregroundStyle(.secondary)
@@ -268,7 +283,7 @@ struct RecoveryCardView: View {
                 Button("I've Kept It Safe") { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
-        .padding(24).frame(width: 640)
+        .padding(24).frame(width: 720)
     }
 
     private func savePDF() {
