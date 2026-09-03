@@ -11,9 +11,14 @@ Free, MIT licensed, no account, no server, no subscription. Same family as
 <p align="center"><img src="docs/screenshots/main.png" width="760" alt="Stash for Mac: folders to protect, where it goes, snapshots"></p>
 <p align="center"><img src="docs/screenshots/card.png" width="560" alt="The recovery card: 24 words and a QR code"></p>
 
-**Status: works, not yet released.** Key and recovery card, encrypted chunks and manifests,
-backup into any folder, restore, and verify are built and tested end to end. Schedules, a menu bar
-presence, the Google Drive and OneDrive APIs, help pages and a release are still to come.
+**Status: complete for a first release, not yet published.** Key and recovery card, encrypted
+chunks and manifests, backup into any folder, a restore browser, verify, snapshot management with
+two retention policies, exclusions, schedules, a menu bar presence, notifications, help in two
+languages and tests three ways are all built. Google Drive and OneDrive over their own APIs (for
+Macs without the desktop apps) are the one roadmap item left.
+
+Measured on an M-series MacBook, 250 files of 4 MB to a local folder: first backup 2.9 s, an
+unchanged second backup 0.6 s, verify 1.8 s, full restore 2.0 s, never more than 33 MB of memory.
 
 ## What it refuses to do
 
@@ -65,19 +70,28 @@ per stash. A second backup uploads only chunks the destination doesn't already h
 stashmac key new | show | card card.pdf | restore "<24 words>" | restore --qr card.png | forget
 stashmac add ~/Documents            stashmac dest ~/Library/CloudStorage/GoogleDrive-you@gmail.com/My\ Drive
 stashmac backup                     every folder to every destination; --json for scripts
-stashmac snapshots                  stashmac restore latest ~/Desktop/Restored [--only photos/2024]
+stashmac snapshots                  stashmac restore latest ~/Desktop/Restored [--only photos/2024,taxes]
+stashmac snapshots | forget <snapshot> | prune --thin      stashmac exclude add "*.mov" --max-mb 2048
 stashmac verify                     opens every chunk of the latest snapshot, restores one random file
 stashmac status                     stashmac selftest
 ```
 
 Exit codes: 0 fine, 1 something to look at (placeholders skipped, nothing to back up), 2 problem.
 
+## Snapshots and space
+
+A snapshot is not a copy: pieces are stored once and shared, so what costs space is old versions
+of files that changed. Manage Snapshots in the window shows what deleting each one would free, and
+two policies run after every backup: keep the newest N, or thin out over time (everything for a
+week, daily for a month, weekly for a year, monthly after). Photos libraries, caches and temp files
+are skipped by default; Settings › Skip takes your own patterns and a size cap.
+
 ## Roadmap
 
-1. Schedule (hourly, daily) with a menu bar item showing the last backup and the next one.
-2. Weekly automatic verify with a plain-language result.
-3. Google Drive and OneDrive over their APIs with app-only scopes, for Macs without the desktop apps.
-4. Help pages, Spanish, screenshots, release.
+1. Google Drive and OneDrive over their APIs with app-only scopes, for Macs without the desktop
+   apps. The engine already talks to storage through a small protocol, so this is one new file.
+2. Content-defined chunking, so an edited large file re-uploads only the part that changed.
+3. Notarization once a Developer ID exists.
 
 ## Building
 
