@@ -6,7 +6,7 @@ external disk, a NAS. The provider only ever holds scrambled blobs. You hold the
 and a QR code on a card.
 
 Free, MIT licensed, no account, no server, no subscription. Same family as
-[Clean for Mac](https://github.com/keithadler/cleanmac) and [Clip for Mac](https://github.com/keithadler/clipmac).
+[Room for Mac](https://github.com/keithadler/roommac) and [Clip for Mac](https://github.com/keithadler/clipmac).
 
 ## Download
 
@@ -139,4 +139,4 @@ Four more small apps built the same way: each does one thing, says exactly what 
 - [Ask for Mac](https://github.com/keithadler/askmac): ask your files a question in your own words and get the answer with the file it came from, all on the Mac.
 - [Permissions for Mac](https://github.com/keithadler/permsmac): every permission on your Mac on one screen, in plain English, with what changed since last week.
 - [Clip for Mac](https://github.com/keithadler/clipmac): a clipboard that remembers, with a stack you paste through one item at a time, and that refuses to record passwords.
-- [Clean for Mac](https://github.com/keithadler/cleanmac): cleanup and speed for the whole family; nothing is deleted, only moved to the Trash with an undoable receipt.
+- [Room for Mac](https://github.com/keithadler/roommac): cleanup and speed for the whole family; nothing is deleted, only moved to the Trash with an undoable receipt.
