@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2 - 2026-09-25
+
+Built and tested on macOS 27.
+
+- Checked on a real macOS 27 Mac end to end through the command line (new key, recovery card PDF, two destinations, backup, dedup on the second run, snapshots, verify, full and partial restore, a tampered chunk caught, key restored from the words) and in the rendered windows. Nothing in the backup format or the app needed to change.
+- The README download link named version 1.0.0 while pointing at 1.0.1; it now names and points at 1.0.2.
+
 ## 1.0.1 — 2026-09-03
 
 "More from the Same Maker" in the Help menu, pointing at the family page. Help and README gained the same section.
